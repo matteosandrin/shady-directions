@@ -12,14 +12,20 @@
     "build": "cd client && npm run build"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "cors": "^2.8.5"
+    "cors": "^2.8.5",
+    "express": "^4.18.2"
   },
   "devDependencies": {
-    "nodemon": "^3.0.2",
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "nodemon": "^3.0.2"
   },
-  "keywords": ["react", "maps", "3d", "geojson", "openstreetmap"],
+  "keywords": [
+    "react",
+    "maps",
+    "3d",
+    "geojson",
+    "openstreetmap"
+  ],
   "author": "Matteo Sandrin",
   "license": "MIT"
 }
