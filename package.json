@@ -1,0 +1,25 @@
+{
+  "name": "shade-map",
+  "version": "1.0.0",
+  "description": "3D building map application with GeoJSON support",
+  "main": "server.js",
+  "scripts": {
+    "install-all": "npm install && cd client && npm install",
+    "start": "node server.js",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "nodemon server.js",
+    "client": "cd client && npm start",
+    "build": "cd client && npm run build"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2",
+    "concurrently": "^8.2.2"
+  },
+  "keywords": ["react", "maps", "3d", "geojson", "openstreetmap"],
+  "author": "Matteo Sandrin",
+  "license": "MIT"
+}
