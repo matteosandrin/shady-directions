@@ -48,6 +48,8 @@ function App() {
       const isUnderground = properties.location === 'underground';
       return !isUnderground;
     });
+
+
     return {
       ...data,
       features: processedFeatures
@@ -103,8 +105,8 @@ function App() {
           depthTest: false,
           depthMask: false,
           blend: true,
-          blendFunc: [770, 771],
-          blendEquation: 32774
+          blendFunc: [774, 0],
+          blendEquation: 32776
         }
       })
     ] : []),
