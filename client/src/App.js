@@ -3,6 +3,7 @@ import { Map } from 'react-map-gl';
 import DeckGL from '@deck.gl/react';
 import { GeoJsonLayer, ScatterplotLayer, PathLayer } from '@deck.gl/layers';
 import { calculateSolarPosition, generateShadowLayer, formatDateTime, parseDateTime } from './shadowUtils';
+import { getShadyPathSections, calculateShadePercentages, createGroupedPaths } from './pathIntersection';
 
 const MAPBOX_ACCESS_TOKEN = process.env.REACT_APP_MAPBOX_ACCESS_TOKEN;
 
@@ -111,6 +112,8 @@ function App() {
       setIsSelectingStart(false);
       if (endPoint) {
         fetchRoute(point, endPoint);
+      } else {
+        setIsSelectingEnd(true);
       }
     } else if (isSelectingEnd) {
       setEndPoint(point);
@@ -145,6 +148,25 @@ function App() {
     return generateShadowLayer(geojsonData.features, solarPosition);
   }, [geojsonData, solarPosition, showShadows]);
 
+  const shadyPathSections = useMemo(() => {
+    if (!routeData || !shadowData || !showShadows) return null;
+    
+    const pathCoordinates = routeData.coordinates;
+    const shadowPolygons = shadowData.features;
+    
+    return getShadyPathSections(pathCoordinates, shadowPolygons);
+  }, [routeData, shadowData, showShadows]);
+
+  const pathStats = useMemo(() => {
+    if (!shadyPathSections) return null;
+    return calculateShadePercentages(shadyPathSections);
+  }, [shadyPathSections]);
+
+  const groupedPaths = useMemo(() => {
+    if (!shadyPathSections) return null;
+    return createGroupedPaths(shadyPathSections);
+  }, [shadyPathSections]);
+
   const layers = geojsonData ? [
     ...(shadowData ? [
       new GeoJsonLayer({
@@ -178,12 +200,34 @@ function App() {
       lineWidthMinPixels: 0.5,
       pickable: true,
     }),
-    ...(routeData ? [
+    ...(routeData && groupedPaths ? [
+      ...groupedPaths.sunnyPaths.map((path, index) => 
+        new PathLayer({
+          id: `route-sunny-${index}`,
+          data: [path],
+          getPath: d => d.coordinates,
+          getColor: [255, 193, 7, 200], // Yellow/orange for sunny sections
+          getWidth: 3,
+          widthMinPixels: 3
+        })
+      ),
+      ...groupedPaths.shadyPaths.map((path, index) => 
+        new PathLayer({
+          id: `route-shady-${index}`,
+          data: [path],
+          getPath: d => d.coordinates,
+          getColor: [138, 43, 226, 200], // Purple for shady sections
+          getWidth: 3,
+          widthMinPixels: 3
+        })
+      )
+    ] : routeData ? [
+      // Fallback to single color if shadows are disabled
       new PathLayer({
         id: 'route',
         data: [routeData],
         getPath: d => d.coordinates,
-        getColor: [0, 150, 255, 100],
+        getColor: [0, 150, 255, 200],
         getWidth: 8,
         widthMinPixels: 3
       })
@@ -386,6 +430,29 @@ function App() {
           {routeData && (
             <div style={{ fontSize: '10px', color: '#aaa', marginTop: '4px' }}>
               Route: {(routeData.distance / 1000).toFixed(2)}km, {Math.round(routeData.duration / 60)}min
+            </div>
+          )}
+          
+          {routeData && shadyPathSections && showShadows && pathStats && (
+            <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #444' }}>
+              <div style={{ fontSize: '11px', fontWeight: 'bold', marginBottom: '4px' }}>Path Analysis:</div>
+              
+              <div style={{ fontSize: '10px', color: '#aaa', marginBottom: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <div style={{ width: '12px', height: '3px', backgroundColor: '#FFC107' }}></div>
+                    <span>Sunny</span>
+                  </div>
+                  <span>{pathStats.sunPercentage}% ({pathStats.sunnyDistance}m)</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <div style={{ width: '12px', height: '3px', backgroundColor: '#8A2BE2' }}></div>
+                    <span>Shady</span>
+                  </div>
+                  <span>{pathStats.shadePercentage}% ({pathStats.shadyDistance}m)</span>
+                </div>
+              </div>
             </div>
           )}
         </div>
