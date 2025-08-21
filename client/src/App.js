@@ -177,19 +177,13 @@ function App() {
       getLineWidth: 1,
       lineWidthMinPixels: 0.5,
       pickable: true,
-      onHover: ({object}) => {
-        if (object) {
-          const height = getBuildingHeight(object);
-          console.log(`Building height: ${height}m`);
-        }
-      }
     }),
     ...(routeData ? [
       new PathLayer({
         id: 'route',
         data: [routeData],
         getPath: d => d.coordinates,
-        getColor: [0, 150, 255, 200],
+        getColor: [0, 150, 255, 100],
         getWidth: 8,
         widthMinPixels: 3
       })
@@ -201,12 +195,12 @@ function App() {
           ...(startPoint ? [{...startPoint, type: 'start'}] : []),
           ...(endPoint ? [{...endPoint, type: 'end'}] : [])
         ],
-        getPosition: d => [d.longitude, d.latitude, 10],
-        getRadius: 8,
+        getPosition: d => [d.longitude, d.latitude, 0],
+        getRadius: 4,
         getFillColor: d => d.type === 'start' ? [0, 255, 0, 255] : [255, 0, 0, 255],
         getLineColor: [255, 255, 255, 255],
         getLineWidth: 2,
-        radiusMinPixels: 6,
+        radiusMinPixels: 4,
         pickable: true
       })
     ] : [])
@@ -287,21 +281,9 @@ function App() {
         fontSize: '14px',
         maxWidth: '300px'
       }}>
-        <h3 style={{ margin: '0 0 10px 0' }}>3D Manhattan Buildings</h3>
-        <p style={{ margin: '0 0 5px 0' }}>
-          Buildings: {geojsonData?.features?.length || 0}
-        </p>
-        <p style={{ margin: '0 0 10px 0', color: '#ccc' }}>
-          Hover over buildings to see height data
-        </p>
-        
-        <div style={{ borderTop: '1px solid #444', paddingTop: '10px' }}>
-          <h4 style={{ margin: '0 0 8px 0', fontSize: '13px' }}>Shadow Simulation</h4>
-          
+        <h3 style={{ margin: '0 0 10px 0' }}>Shade walking directions</h3>
+        <div>
           <div style={{ marginBottom: '8px' }}>
-            <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px' }}>
-              Date & Time:
-            </label>
             <input
               type="datetime-local"
               value={selectedDateTime}
@@ -316,18 +298,6 @@ function App() {
                 fontSize: '12px'
               }}
             />
-          </div>
-          
-          <div style={{ marginBottom: '8px' }}>
-            <label style={{ display: 'flex', alignItems: 'center', fontSize: '12px', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={showShadows}
-                onChange={(e) => setShowShadows(e.target.checked)}
-                style={{ marginRight: '6px' }}
-              />
-              Show Shadows
-            </label>
           </div>
           
           {solarPosition && (
