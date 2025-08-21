@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Map } from 'react-map-gl';
 import DeckGL from '@deck.gl/react';
-import { GeoJsonLayer } from '@deck.gl/layers';
+import { GeoJsonLayer, ScatterplotLayer, PathLayer } from '@deck.gl/layers';
 import { calculateSolarPosition, generateShadowLayer, formatDateTime, parseDateTime } from './shadowUtils';
 
 const MAPBOX_ACCESS_TOKEN = 'pk.eyJ1IjoibWF0dGVvc2FuZHJpbiIsImEiOiJjajE5dHFrNTgwMDY5MnFxbXBldzA2aTliIn0.KHzhRZCopAziY_O0CJxPPw';
@@ -20,6 +20,11 @@ function App() {
   const [error, setError] = useState(null);
   const [selectedDateTime, setSelectedDateTime] = useState(formatDateTime(new Date()));
   const [showShadows, setShowShadows] = useState(true);
+  const [startPoint, setStartPoint] = useState(null);
+  const [endPoint, setEndPoint] = useState(null);
+  const [routeData, setRouteData] = useState(null);
+  const [isSelectingStart, setIsSelectingStart] = useState(false);
+  const [isSelectingEnd, setIsSelectingEnd] = useState(false);
   
   const manhattanCenter = { lat: 40.7128, lng: -74.006 };
 
@@ -72,6 +77,56 @@ function App() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchRoute = async (start, end) => {
+    try {
+      const response = await fetch('/api/directions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ start, end }),
+      });
+      const result = await response.json();
+      
+      if (result.success) {
+        setRouteData(result.route);
+      } else {
+        console.error('Route calculation failed:', result.error);
+      }
+    } catch (err) {
+      console.error('Error fetching route:', err);
+    }
+  };
+
+  const handleMapClick = (info) => {
+    if (!info.coordinate) return;
+    
+    const [longitude, latitude] = info.coordinate;
+    const point = { longitude, latitude };
+    
+    if (isSelectingStart) {
+      setStartPoint(point);
+      setIsSelectingStart(false);
+      if (endPoint) {
+        fetchRoute(point, endPoint);
+      }
+    } else if (isSelectingEnd) {
+      setEndPoint(point);
+      setIsSelectingEnd(false);
+      if (startPoint) {
+        fetchRoute(startPoint, point);
+      }
+    }
+  };
+
+  const clearRoute = () => {
+    setStartPoint(null);
+    setEndPoint(null);
+    setRouteData(null);
+    setIsSelectingStart(false);
+    setIsSelectingEnd(false);
   };
 
   const getBuildingHeight = (feature) => {
@@ -128,7 +183,33 @@ function App() {
           console.log(`Building height: ${height}m`);
         }
       }
-    })
+    }),
+    ...(routeData ? [
+      new PathLayer({
+        id: 'route',
+        data: [routeData],
+        getPath: d => d.coordinates,
+        getColor: [0, 150, 255, 200],
+        getWidth: 8,
+        widthMinPixels: 3
+      })
+    ] : []),
+    ...((startPoint || endPoint) ? [
+      new ScatterplotLayer({
+        id: 'waypoints',
+        data: [
+          ...(startPoint ? [{...startPoint, type: 'start'}] : []),
+          ...(endPoint ? [{...endPoint, type: 'end'}] : [])
+        ],
+        getPosition: d => [d.longitude, d.latitude, 10],
+        getRadius: 8,
+        getFillColor: d => d.type === 'start' ? [0, 255, 0, 255] : [255, 0, 0, 255],
+        getLineColor: [255, 255, 255, 255],
+        getLineWidth: 2,
+        radiusMinPixels: 6,
+        pickable: true
+      })
+    ] : [])
   ] : [];
 
   if (loading) {
@@ -185,6 +266,7 @@ function App() {
         initialViewState={INITIAL_VIEW_STATE}
         controller={true}
         layers={layers}
+        onClick={handleMapClick}
         style={{ width: '100%', height: '100%' }}
       >
         <Map
@@ -255,6 +337,85 @@ function App() {
               {solarPosition.elevation <= 0 && (
                 <div style={{ color: '#ff6b6b', marginTop: '4px' }}>Sun is below horizon</div>
               )}
+            </div>
+          )}
+        </div>
+        
+        <div style={{ borderTop: '1px solid #444', paddingTop: '10px', marginTop: '10px' }}>
+          <h4 style={{ margin: '0 0 8px 0', fontSize: '13px' }}>Walking Directions</h4>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <button
+              onClick={() => {
+                setIsSelectingStart(true);
+                setIsSelectingEnd(false);
+              }}
+              disabled={isSelectingStart}
+              style={{
+                padding: '6px 8px',
+                fontSize: '11px',
+                backgroundColor: isSelectingStart ? '#4CAF50' : '#555',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: isSelectingStart ? 'default' : 'pointer'
+              }}
+            >
+              {isSelectingStart ? 'Click map for start...' : 'Set Start Point'}
+            </button>
+            
+            <button
+              onClick={() => {
+                setIsSelectingEnd(true);
+                setIsSelectingStart(false);
+              }}
+              disabled={isSelectingEnd}
+              style={{
+                padding: '6px 8px',
+                fontSize: '11px',
+                backgroundColor: isSelectingEnd ? '#f44336' : '#555',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: isSelectingEnd ? 'default' : 'pointer'
+              }}
+            >
+              {isSelectingEnd ? 'Click map for end...' : 'Set End Point'}
+            </button>
+            
+            {(startPoint || endPoint || routeData) && (
+              <button
+                onClick={clearRoute}
+                style={{
+                  padding: '6px 8px',
+                  fontSize: '11px',
+                  backgroundColor: '#666',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer'
+                }}
+              >
+                Clear Route
+              </button>
+            )}
+          </div>
+          
+          {startPoint && (
+            <div style={{ fontSize: '10px', color: '#aaa', marginTop: '4px' }}>
+              Start: {startPoint.latitude.toFixed(4)}, {startPoint.longitude.toFixed(4)}
+            </div>
+          )}
+          
+          {endPoint && (
+            <div style={{ fontSize: '10px', color: '#aaa', marginTop: '2px' }}>
+              End: {endPoint.latitude.toFixed(4)}, {endPoint.longitude.toFixed(4)}
+            </div>
+          )}
+          
+          {routeData && (
+            <div style={{ fontSize: '10px', color: '#aaa', marginTop: '4px' }}>
+              Route: {(routeData.distance / 1000).toFixed(2)}km, {Math.round(routeData.duration / 60)}min
             </div>
           )}
         </div>
