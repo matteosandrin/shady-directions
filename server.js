@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -45,7 +46,7 @@ const calculateWalkingRoute = async (start, end) => {
         format: 'geojson'
       },
       headers: {
-        'Authorization': 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjJhMjNiMTkzZjMxMDQyZTU4ZGFkNGI3ODk3ZTViY2FiIiwiaCI6Im11cm11cjY0In0='
+        'Authorization': process.env.OPENROUTESERVICE_ACCESS_TOKEN
       }
     });
     

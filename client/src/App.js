@@ -4,7 +4,7 @@ import DeckGL from '@deck.gl/react';
 import { GeoJsonLayer, ScatterplotLayer, PathLayer } from '@deck.gl/layers';
 import { calculateSolarPosition, generateShadowLayer, formatDateTime, parseDateTime } from './shadowUtils';
 
-const MAPBOX_ACCESS_TOKEN = 'pk.eyJ1IjoibWF0dGVvc2FuZHJpbiIsImEiOiJjajE5dHFrNTgwMDY5MnFxbXBldzA2aTliIn0.KHzhRZCopAziY_O0CJxPPw';
+const MAPBOX_ACCESS_TOKEN = process.env.REACT_APP_MAPBOX_ACCESS_TOKEN;
 
 const INITIAL_VIEW_STATE = {
   longitude: -74.006,
