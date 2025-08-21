@@ -7,11 +7,26 @@ import { getShadyPathSections, calculateShadePercentages, createGroupedPaths } f
 
 const MAPBOX_ACCESS_TOKEN = process.env.REACT_APP_MAPBOX_ACCESS_TOKEN;
 
+const detectMobile = () => {
+  // Check for mobile user agents
+  const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
+  const isMobileUserAgent = mobileRegex.test(navigator.userAgent);
+  
+  // Check for touch capability
+  const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  
+  // Check screen size (typical mobile breakpoint)
+  const isSmallScreen = window.innerWidth <= 768;
+  
+  // Consider it mobile if any of these conditions are true
+  return isMobileUserAgent || (isTouchDevice && isSmallScreen);
+};
+
 const INITIAL_VIEW_STATE = {
   longitude: -74.006,
   latitude: 40.7128,
   zoom: 13,
-  pitch: 45,
+  pitch: 0,
   bearing: 0
 };
 
@@ -26,22 +41,30 @@ function App() {
   const [routeData, setRouteData] = useState(null);
   const [isSelectingStart, setIsSelectingStart] = useState(false);
   const [isSelectingEnd, setIsSelectingEnd] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   
   const manhattanCenter = { lat: 40.7128, lng: -74.006 };
 
-  // iOS Safari memory management
-  const [IsMobile, setIsMobile] = useState(false);
-  
-  useEffect(() => {
-    // Detect iOS Safari memory constraints
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    if (isIOS) {
-      setIsMobile(true);
-    }
-  }, []);
 
   useEffect(() => {
     fetchGeojsonData();
+  }, []);
+
+  useEffect(() => {
+    // Initial mobile detection
+    setIsMobile(detectMobile());
+    
+    // Listen for window resize to re-detect mobile (for responsive design)
+    const handleResize = () => {
+      setIsMobile(detectMobile());
+    };
+    
+    window.addEventListener('resize', handleResize);
+    
+    // Cleanup event listener
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
   }, []);
 
   const processGeojsonData = (data) => {
@@ -182,7 +205,7 @@ function App() {
     if (!geojsonData) return [];
     try {
       return [
-        ...(shadowData && !IsMobile ? [
+        ...((shadowData && !isMobile) ? [
           new GeoJsonLayer({
             id: 'shadows',
             data: shadowData,
@@ -204,15 +227,15 @@ function App() {
         new GeoJsonLayer({
           id: 'buildings',
           data: geojsonData,
-          extruded: !IsMobile, // Disable extrusion on mobile for performance
+          extruded: false,
           wireframe: false,
           filled: true,
-          getElevation: (d) => IsMobile ? 0 : getBuildingHeight(d),
+          getElevation: 0,
           getFillColor: [220, 220, 220, 255],
-          getLineColor: IsMobile ? [180, 180, 180, 0] : [180, 180, 180, 255],
-          getLineWidth: IsMobile ? 0 : 1,
-          lineWidthMinPixels: 0.5,
-          pickable: !IsMobile, // Disable picking on mobile
+          getLineColor: [180, 180, 180, 255],
+          getLineWidth: 1,
+          lineWidthMinPixels: 0,
+          pickable: true,
         }),
     ...(routeData && groupedPaths ? [
       ...groupedPaths.sunnyPaths.map((path, index) => 
@@ -267,7 +290,7 @@ function App() {
       console.error('Error creating layers:', error);
       return [];
     }
-  }, [geojsonData, shadowData, IsMobile, routeData, groupedPaths, startPoint, endPoint]);
+  }, [geojsonData, shadowData, routeData, groupedPaths, startPoint, endPoint]);
 
   if (loading) {
     return (
@@ -322,13 +345,13 @@ function App() {
       <DeckGL
         initialViewState={INITIAL_VIEW_STATE}
         controller={{
-          scrollZoom: { speed: IsMobile ? 0.02 : 0.05, smooth: false },
+          scrollZoom: { speed: 0.05, smooth: false },
           doubleClickZoom: true,
-          touchRotate: !IsMobile,
+          touchRotate: false,
           touchZoom: true,
-          keyboard: { moveSpeed: 100, rotateSpeedX: 30, rotateSpeedY: 20 },
+          keyboard: { moveSpeed: 100 },
           minPitch: 0,
-          maxPitch: 85
+          maxPitch: 0
         }}
         layers={layers}
         onClick={handleMapClick}
