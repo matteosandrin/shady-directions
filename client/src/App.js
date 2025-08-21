@@ -29,6 +29,17 @@ function App() {
   
   const manhattanCenter = { lat: 40.7128, lng: -74.006 };
 
+  // iOS Safari memory management
+  const [IsMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    // Detect iOS Safari memory constraints
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    if (isIOS) {
+      setIsMobile(true);
+    }
+  }, []);
+
   useEffect(() => {
     fetchGeojsonData();
   }, []);
@@ -167,39 +178,42 @@ function App() {
     return createGroupedPaths(shadyPathSections);
   }, [shadyPathSections]);
 
-  const layers = geojsonData ? [
-    ...(shadowData ? [
-      new GeoJsonLayer({
-        id: 'shadows',
-        data: shadowData,
-        extruded: false,
-        filled: true,
-        getFillColor: [0, 0, 0, 80],
-        getLineColor: [0, 0, 0, 0],
-        getLineWidth: 0,
-        lineWidthMinPixels: 0,
-        parameters: {
-          depthTest: false,
-          depthMask: false,
-          blend: true,
-          blendFunc: [774, 0],
-          blendEquation: 32776
-        }
-      })
-    ] : []),
-    new GeoJsonLayer({
-      id: 'buildings',
-      data: geojsonData,
-      extruded: true,
-      wireframe: false,
-      filled: true,
-      getElevation: (d) => getBuildingHeight(d),
-      getFillColor: [220, 220, 220, 255],
-      getLineColor: [180, 180, 180, 255],
-      getLineWidth: 1,
-      lineWidthMinPixels: 0.5,
-      pickable: true,
-    }),
+  const layers = useMemo(() => {
+    if (!geojsonData) return [];
+    try {
+      return [
+        ...(shadowData && !IsMobile ? [
+          new GeoJsonLayer({
+            id: 'shadows',
+            data: shadowData,
+            extruded: false,
+            filled: true,
+            getFillColor: [0, 0, 0, 80],
+            getLineColor: [0, 0, 0, 0],
+            getLineWidth: 0,
+            lineWidthMinPixels: 0,
+            parameters: {
+              depthTest: false,
+              depthMask: false,
+              blend: true,
+              blendFunc: [774, 0],
+              blendEquation: 32776
+            }
+          })
+        ] : []),
+        new GeoJsonLayer({
+          id: 'buildings',
+          data: geojsonData,
+          extruded: !IsMobile, // Disable extrusion on mobile for performance
+          wireframe: false,
+          filled: true,
+          getElevation: (d) => IsMobile ? 0 : getBuildingHeight(d),
+          getFillColor: [220, 220, 220, 255],
+          getLineColor: IsMobile ? [180, 180, 180, 0] : [180, 180, 180, 255],
+          getLineWidth: IsMobile ? 0 : 1,
+          lineWidthMinPixels: 0.5,
+          pickable: !IsMobile, // Disable picking on mobile
+        }),
     ...(routeData && groupedPaths ? [
       ...groupedPaths.sunnyPaths.map((path, index) => 
         new PathLayer({
@@ -248,7 +262,12 @@ function App() {
         pickable: true
       })
     ] : [])
-  ] : [];
+      ];
+    } catch (error) {
+      console.error('Error creating layers:', error);
+      return [];
+    }
+  }, [geojsonData, shadowData, IsMobile, routeData, groupedPaths, startPoint, endPoint]);
 
   if (loading) {
     return (
@@ -302,9 +321,21 @@ function App() {
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
       <DeckGL
         initialViewState={INITIAL_VIEW_STATE}
-        controller={true}
+        controller={{
+          scrollZoom: { speed: IsMobile ? 0.02 : 0.05, smooth: false },
+          doubleClickZoom: true,
+          touchRotate: !IsMobile,
+          touchZoom: true,
+          keyboard: { moveSpeed: 100, rotateSpeedX: 30, rotateSpeedY: 20 },
+          minPitch: 0,
+          maxPitch: 85
+        }}
         layers={layers}
         onClick={handleMapClick}
+        onError={(error) => {
+          console.error('DeckGL Error:', error);
+          setError('3D rendering error. Try refreshing the page.');
+        }}
         style={{ width: '100%', height: '100%' }}
       >
         <Map
