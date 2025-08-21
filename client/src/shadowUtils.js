@@ -8,7 +8,7 @@ export const calculateSolarPosition = (date, latitude, longitude) => {
   };
 };
 
-export const calculateShadowFootprint = (building, solarPosition, groundLevel = 0) => {
+export const calculateShadowFootprints = (building, solarPosition, groundLevel = 0) => {
   if (solarPosition.elevation <= 0) {
     return null;
   }
@@ -25,30 +25,45 @@ export const calculateShadowFootprint = (building, solarPosition, groundLevel = 
     return null;
   }
 
-  const coordinates = building.geometry.coordinates[0];
+  const buildingCoordinates = building.geometry.coordinates[0];
   
   // Convert meters to degrees more accurately for Manhattan's latitude
-  const latitude = coordinates[0][1]; // Use building's latitude
+  const latitude = buildingCoordinates[0][1]; // Use building's latitude
   const metersPerDegreeLat = 111320;
   const metersPerDegreeLng = 111320 * Math.cos(latitude * Math.PI / 180);
   
-  const shadowCoordinates = coordinates.map(coord => [
+  const shadowCoordinates = buildingCoordinates.map(coord => [
     coord[0] + shadowOffset.x / metersPerDegreeLng,
     coord[1] + shadowOffset.y / metersPerDegreeLat
   ]);
 
-  return {
+  let parallelogramCoordinates = [];
+  for (let i = 0; i < buildingCoordinates.length - 1; i++) {
+    parallelogramCoordinates.push([
+      buildingCoordinates[i],
+      buildingCoordinates[i + 1],
+      shadowCoordinates[i + 1],
+      shadowCoordinates[i]
+    ]);
+  }
+
+  const allCoordinates = [
+    ...parallelogramCoordinates,
+    shadowCoordinates
+  ];
+
+  return allCoordinates.map(coords => ({
     type: 'Feature',
     geometry: {
       type: 'Polygon',
-      coordinates: [shadowCoordinates]
+      coordinates: [coords]
     },
     properties: {
       buildingId: building.properties?.['@id'] || 'unknown',
       shadowLength,
       buildingHeight: building.height
     }
-  };
+  }));
 };
 
 export const generateShadowLayer = (buildings, solarPosition) => {
@@ -63,11 +78,12 @@ export const generateShadowLayer = (buildings, solarPosition) => {
                     building.properties?.elevation || 
                     building.properties?.ELEVATION || 20;
       
-      return calculateShadowFootprint({
+      return calculateShadowFootprints({
         ...building,
         height: parseFloat(height)
       }, solarPosition);
     })
+    .flat()
     .filter(shadow => shadow !== null);
 
   return {
