@@ -52,23 +52,7 @@ function App() {
   useEffect(() => {
     fetchGeojsonData();
     setIsSelectingStart(true);
-  }, []);
-
-  useEffect(() => {
-    // Initial mobile detection
     setIsMobile(detectMobile());
-    
-    // Listen for window resize to re-detect mobile (for responsive design)
-    const handleResize = () => {
-      setIsMobile(detectMobile());
-    };
-    
-    window.addEventListener('resize', handleResize);
-    
-    // Cleanup event listener
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
   }, []);
 
   const processGeojsonData = (data) => {
@@ -274,8 +258,7 @@ function App() {
           filled: true,
           getElevation: 0,
           getFillColor: d => getColorFromHeight(getHeightFromFeature(d)),
-          getLineColor: [180, 180, 180, 255],
-          getLineWidth: 1,
+          getLineWidth: 0,
           lineWidthMinPixels: 0,
           pickable: true,
         }),
