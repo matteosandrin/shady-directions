@@ -7,6 +7,7 @@
     "@deck.gl/geo-layers": "^8.9.33",
     "@deck.gl/layers": "^8.9.33",
     "@deck.gl/react": "^8.9.33",
+    "@turf/distance": "^7.2.0",
     "dotenv": "^17.2.1",
     "mapbox-gl": "^2.15.0",
     "react": "^18.2.0",

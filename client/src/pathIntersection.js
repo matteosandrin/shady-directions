@@ -1,3 +1,19 @@
+import distance from '@turf/distance';
+import { point } from '@turf/helpers';
+
+const calculateDistance = (coord1, coord2) => {
+  const from = point(coord1);
+  const to = point(coord2);
+  return distance(from, to, {units: 'meters'});
+};
+
+const interpolateCoordinates = (coord1, coord2, ratio) => {
+  return [
+    coord1[0] + (coord2[0] - coord1[0]) * ratio,
+    coord1[1] + (coord2[1] - coord1[1]) * ratio
+  ];
+};
+
 const getBoundingBox = (coords) => {
   let minX = coords[0][0], maxX = coords[0][0];
   let minY = coords[0][1], maxY = coords[0][1];
@@ -115,20 +131,6 @@ export const calculateShadePercentages = (shadyPathSections) => {
     return { shadePercentage: 0, sunPercentage: 0 };
   }
 
-  const calculateDistance = (start, end) => {
-    const [lon1, lat1] = start;
-    const [lon2, lat2] = end;
-    
-    const R = 6371000; // Earth's radius in meters
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  };
-
   let totalDistance = 0;
   let shadyDistance = 0;
 
@@ -195,3 +197,34 @@ export const createGroupedPaths = (shadyPathSections) => {
 
   return { sunnyPaths, shadyPaths };
 };
+
+export const chunkRoute = (route, maxSegmentLength = 50) => {
+  if (!route || !route.coordinates) return route;
+  
+  const chunkedCoordinates = [];
+  const coordinates = route.coordinates;
+  
+  for (let i = 0; i < coordinates.length - 1; i++) {
+    const start = coordinates[i];
+    const end = coordinates[i + 1];
+    const distance = calculateDistance(start, end);
+    
+    chunkedCoordinates.push(start);
+    
+    if (distance > maxSegmentLength) {
+      const numChunks = Math.ceil(distance / maxSegmentLength);
+      for (let j = 1; j < numChunks; j++) {
+        const ratio = j / numChunks;
+        const interpolated = interpolateCoordinates(start, end, ratio);
+        chunkedCoordinates.push(interpolated);
+      }
+    }
+  }
+  
+  chunkedCoordinates.push(coordinates[coordinates.length - 1]);
+  
+  return {
+    ...route,
+    coordinates: chunkedCoordinates
+  };
+  };

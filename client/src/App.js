@@ -3,7 +3,7 @@ import { Map } from 'react-map-gl';
 import DeckGL from '@deck.gl/react';
 import { GeoJsonLayer, ScatterplotLayer, PathLayer } from '@deck.gl/layers';
 import { calculateSolarPosition, generateShadowLayer, formatDateTime, parseDateTime } from './shadowUtils';
-import { getShadyPathSections, calculateShadePercentages, createGroupedPaths } from './pathIntersection';
+import { getShadyPathSections, calculateShadePercentages, createGroupedPaths, chunkRoute } from './pathIntersection';
 
 const MAPBOX_ACCESS_TOKEN = process.env.REACT_APP_MAPBOX_ACCESS_TOKEN;
 
@@ -126,7 +126,10 @@ function App() {
       const result = await response.json();
       
       if (result.success) {
-        setRouteData(result.route);
+        // make the route more granular so we can show the shaded sections with
+        // higher resolution
+        const chunkedRoute = chunkRoute(result.route);
+        setRouteData(chunkedRoute);
       } else {
         console.error('Route calculation failed:', result.error);
       }
