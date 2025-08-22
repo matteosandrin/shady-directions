@@ -97,14 +97,14 @@ function App() {
 
   const fetchGeojsonData = async () => {
     try {
-      const response = await fetch('/api/manhattan-geojson');
+      const response = await fetch('/data/manhattan.geojson');
       const result = await response.json();
       
-      if (result.success) {
-        const processedData = processGeojsonData(result.data);
+      if (response.ok) {
+        const processedData = processGeojsonData(result);
         setGeojsonData(processedData);
       } else {
-        setError(result.error || 'Failed to load data');
+        setError('Failed to load data');
       }
     } catch (err) {
       setError('Error connecting to server: ' + err.message);
@@ -115,7 +115,7 @@ function App() {
 
   const fetchRoute = async (start, end) => {
     try {
-      const response = await fetch('/api/directions', {
+      const response = await fetch('/directions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
