@@ -41,12 +41,14 @@ function App() {
   const [isSelectingStart, setIsSelectingStart] = useState(false);
   const [isSelectingEnd, setIsSelectingEnd] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isProcessingRoute, setIsProcessingRoute] = useState(false);
   
   const manhattanCenter = { lat: 40.7128, lng: -74.006 };
 
 
   useEffect(() => {
     fetchGeojsonData();
+    setIsSelectingStart(true);
   }, []);
 
   useEffect(() => {
@@ -114,6 +116,7 @@ function App() {
   };
 
   const fetchRoute = async (start, end) => {
+    setIsProcessingRoute(true);
     try {
       const response = await fetch('/directions', {
         method: 'POST',
@@ -134,6 +137,8 @@ function App() {
       }
     } catch (err) {
       console.error('Error fetching route:', err);
+    } finally {
+      setIsProcessingRoute(false);
     }
   };
 
@@ -166,6 +171,7 @@ function App() {
     setRouteData(null);
     setIsSelectingStart(false);
     setIsSelectingEnd(false);
+    setIsProcessingRoute(false);
   };
 
   const solarPosition = useMemo(() => {
@@ -338,6 +344,14 @@ function App() {
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
+      <style>
+        {`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}
+      </style>
       <DeckGL
         initialViewState={INITIAL_VIEW_STATE}
         controller={{
@@ -477,7 +491,32 @@ function App() {
             </div>
           )}
           
-          {routeData && (
+          {isProcessingRoute && (
+            <div style={{ 
+              fontSize: '11px', 
+              color: '#4CAF50', 
+              marginTop: '8px',
+              padding: '6px 8px',
+              backgroundColor: 'rgba(76, 175, 80, 0.1)',
+              borderRadius: '4px',
+              border: '1px solid rgba(76, 175, 80, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}>
+              <div style={{
+                width: '12px',
+                height: '12px',
+                border: '2px solid #4CAF50',
+                borderTop: '2px solid transparent',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite'
+              }}></div>
+              Computing walking route...
+            </div>
+          )}
+
+          {routeData && !isProcessingRoute && (
             <div style={{ fontSize: '10px', color: '#aaa', marginTop: '4px' }}>
               Route: {(routeData.distance / 1000).toFixed(2)}km, {Math.round(routeData.duration / 60)}min
             </div>
