@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { Heap } from 'heap-js';
 
 function haversine(lat1, lon1, lat2, lon2) {
   const R = 6371000; // meters
@@ -256,59 +257,17 @@ function astar(graph, startIdx, goalIdx, opts = {}) {
     return distance / walkSpeed; // optimistic time estimate
   }
 
-  // Simple binary heap for priority queue
-  const heap = [];
-  function push(i) {
-    heap.push(i);
-    siftUp(heap.length - 1);
-  }
-
-  function pop() {
-    const top = heap[0];
-    const last = heap.pop();
-    if (heap.length > 0) {
-      heap[0] = last;
-      siftDown(0);
-    }
-    return top;
-  }
-
-  function siftUp(k) {
-    while (k > 0) {
-      const parent = Math.floor((k - 1) / 2);
-      if (f[heap[parent]] <= f[heap[k]]) break;
-      [heap[parent], heap[k]] = [heap[k], heap[parent]];
-      k = parent;
-    }
-  }
-
-  function siftDown(k) {
-    while (true) {
-      let left = k * 2 + 1;
-      let right = left + 1;
-      let smallest = k;
-
-      if (left < heap.length && f[heap[left]] < f[heap[smallest]]) {
-        smallest = left;
-      }
-      if (right < heap.length && f[heap[right]] < f[heap[smallest]]) {
-        smallest = right;
-      }
-      if (smallest === k) break;
-
-      [heap[smallest], heap[k]] = [heap[k], heap[smallest]];
-      k = smallest;
-    }
-  }
+  // Priority queue using heap-js
+  const heap = new Heap((a, b) => f[a] - f[b]);
 
   g[startIdx] = 0;
   f[startIdx] = heuristic(startIdx);
-  push(startIdx);
+  heap.push(startIdx);
 
   const closed = new Uint8Array(N);
 
-  while (heap.length > 0) {
-    const current = pop();
+  while (heap.size() > 0) {
+    const current = heap.pop();
 
     if (current === goalIdx) break;
     if (closed[current]) continue;
@@ -336,7 +295,7 @@ function astar(graph, startIdx, goalIdx, opts = {}) {
         parent[neighbor] = current;
         parentEdge[neighbor] = edge.eid;
         f[neighbor] = tentativeG + heuristic(neighbor);
-        push(neighbor);
+        heap.push(neighbor);
       }
     }
   }
