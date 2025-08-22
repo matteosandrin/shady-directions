@@ -90,16 +90,26 @@ const lineSegmentIntersectsPolygon = (start, end, polygon, boundingBox) => {
   return false;
 };
 
+const areBoundingBoxesOverlapping = (bb1, bb2) => {
+  return !(bb1.maxX < bb2.minX || bb1.minX > bb2.maxX || 
+           bb1.maxY < bb2.minY || bb1.minY > bb2.maxY);
+};
+
 export const getShadyPathSections = (pathCoordinates, shadowPolygons) => {
+  const startTime = performance.now();
+  
   if (!pathCoordinates || !shadowPolygons || pathCoordinates.length < 2) {
     return [];
   }
-  
+
+  const routeBoundingBox = getBoundingBox(pathCoordinates);
   const polygonsWithBoundingBox = shadowPolygons.map(polygon => ({
     polygon,
     boundingBox: getBoundingBox(polygon.geometry.coordinates[0])
-  }));
-  
+  })).filter(({ boundingBox }) => {
+    return areBoundingBoxesOverlapping(routeBoundingBox, boundingBox);
+  });
+
   const shadySections = [];
   
   for (let i = 0; i < pathCoordinates.length - 1; i++) {
@@ -123,6 +133,8 @@ export const getShadyPathSections = (pathCoordinates, shadowPolygons) => {
     });
   }
   
+  const endTime = performance.now();
+  console.log(`getShadyPathSections took ${endTime - startTime} ms`);
   return shadySections;
 };
 
