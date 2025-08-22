@@ -35,7 +35,6 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedDateTime, setSelectedDateTime] = useState(formatDateTime(new Date()));
-  const [showShadows, setShowShadows] = useState(true);
   const [startPoint, setStartPoint] = useState(null);
   const [endPoint, setEndPoint] = useState(null);
   const [routeData, setRouteData] = useState(null);
@@ -169,30 +168,24 @@ function App() {
     setIsSelectingEnd(false);
   };
 
-  const getBuildingHeight = (feature) => {
-    const properties = feature.properties || {};
-    const height = properties.height || properties.HEIGHT || properties.elevation || properties.ELEVATION || 20;
-    return Math.max(height, 0);
-  };
-
   const solarPosition = useMemo(() => {
     const date = parseDateTime(selectedDateTime);
     return calculateSolarPosition(date, manhattanCenter.lat, manhattanCenter.lng);
   }, [selectedDateTime, manhattanCenter.lat, manhattanCenter.lng]);
 
   const shadowData = useMemo(() => {
-    if (!geojsonData || !showShadows) return null;
+    if (!geojsonData) return null;
     return generateShadowLayer(geojsonData.features, solarPosition);
-  }, [geojsonData, solarPosition, showShadows]);
+  }, [geojsonData, solarPosition]);
 
   const shadyPathSections = useMemo(() => {
-    if (!routeData || !shadowData || !showShadows) return null;
+    if (!routeData || !shadowData) return null;
     
     const pathCoordinates = routeData.coordinates;
     const shadowPolygons = shadowData.features;
     
     return getShadyPathSections(pathCoordinates, shadowPolygons);
-  }, [routeData, shadowData, showShadows]);
+  }, [routeData, shadowData]);
 
   const pathStats = useMemo(() => {
     if (!shadyPathSections) return null;
@@ -293,7 +286,7 @@ function App() {
       console.error('Error creating layers:', error);
       return [];
     }
-  }, [geojsonData, shadowData, routeData, groupedPaths, startPoint, endPoint]);
+  }, [geojsonData, shadowData, routeData, groupedPaths, startPoint, endPoint, isMobile]);
 
   if (loading) {
     return (
@@ -490,7 +483,7 @@ function App() {
             </div>
           )}
           
-          {routeData && shadyPathSections && showShadows && pathStats && (
+          {routeData && shadyPathSections && pathStats && (
             <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #444' }}>
               <div style={{ fontSize: '11px', fontWeight: 'bold', marginBottom: '4px' }}>Path Analysis:</div>
               
