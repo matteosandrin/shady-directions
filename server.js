@@ -4,6 +4,7 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const axios = require('axios');
+const routing = require('./routing');
 
 const app = express();
 const PORT = process.env.PORT || 5555;
@@ -14,6 +15,12 @@ app.use(express.static(path.join(__dirname, 'client/static')));
 app.use('/data', express.static(path.join(__dirname, 'data')));
 
 const calculateWalkingRoute = async (start, end) => {
+  const graph = routing.buildGraph();
+  const route = routing.findRoute(graph, start, end);
+  return route;
+};
+
+const calculateWalkingRouteOnline = async (start, end) => {
   try {
     const response = await axios.get('https://api.openrouteservice.org/v2/directions/foot-walking', {
       params: {
@@ -25,7 +32,6 @@ const calculateWalkingRoute = async (start, end) => {
         'Authorization': process.env.OPENROUTESERVICE_ACCESS_TOKEN
       }
     });
-    
     if (response.data && response.data.features && response.data.features.length > 0) {
       const route = response.data.features[0];
       return {
@@ -34,7 +40,6 @@ const calculateWalkingRoute = async (start, end) => {
         duration: route.properties.segments[0].duration
       };
     }
-    
     throw new Error('No route found');
   } catch (error) {
     if (error.response?.status === 401) {
@@ -47,13 +52,10 @@ const calculateWalkingRoute = async (start, end) => {
 app.post('/directions', async (req, res) => {
   try {
     const { start, end } = req.body;
-    
     if (!start || !end || !start.longitude || !start.latitude || !end.longitude || !end.latitude) {
       return res.status(400).json({ error: 'Invalid start or end coordinates' });
     }
-    
     const route = await calculateWalkingRoute(start, end);
-    
     res.json({
       success: true,
       route: route
