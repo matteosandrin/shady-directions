@@ -182,6 +182,43 @@ function App() {
     return calculateSolarPosition(date, manhattanCenter.lat, manhattanCenter.lng);
   }, [selectedDateTime, manhattanCenter.lat, manhattanCenter.lng]);
 
+  const getHeightFromFeature = (feature) => {
+    const properties = feature.properties || {};
+    const heightValue = properties.height || properties.HEIGHT || 0;
+    return parseFloat(heightValue);
+  };
+
+  const hexToRgb = (hex) => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? [
+      parseInt(result[1], 16),
+      parseInt(result[2], 16),
+      parseInt(result[3], 16)
+    ] : [0, 0, 0];
+  };
+
+  const getColorFromHeight = (height) => {
+    // Set your min and max colors here as hex values
+    const minHeightColor = '#C9E0EB'; // Blue for shortest buildings
+    const maxHeightColor = '#376C85'; // Green for tallest buildings
+    
+    const min = 0;
+    const max = 35;
+    
+    const normalized = Math.max(0, Math.min(1, (height - min) / (max - min)));
+    
+    // Convert hex colors to RGB
+    const minRgb = hexToRgb(minHeightColor);
+    const maxRgb = hexToRgb(maxHeightColor);
+    
+    // Linear interpolation between the two colors
+    const red = Math.round(minRgb[0] + (maxRgb[0] - minRgb[0]) * normalized);
+    const green = Math.round(minRgb[1] + (maxRgb[1] - minRgb[1]) * normalized);
+    const blue = Math.round(minRgb[2] + (maxRgb[2] - minRgb[2]) * normalized);
+    
+    return [red, green, blue, 255];
+  };
+
   const shadowData = useMemo(() => {
     if (!geojsonData) return null;
     return generateShadowLayer(geojsonData.features, solarPosition);
@@ -236,7 +273,7 @@ function App() {
           wireframe: false,
           filled: true,
           getElevation: 0,
-          getFillColor: [220, 220, 220, 255],
+          getFillColor: d => getColorFromHeight(getHeightFromFeature(d)),
           getLineColor: [180, 180, 180, 255],
           getLineWidth: 1,
           lineWidthMinPixels: 0,
