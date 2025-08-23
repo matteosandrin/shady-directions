@@ -71,7 +71,6 @@ export function buildGraph() {
   // Fill coordinate array and validate indices
   for (const [osmId, nodeData] of nodes) {
     if (nodeData.idx >= graph.coords.length) {
-      // console.error(`Node index ${nodeData.idx} exceeds array length ${graph.coords.length} for node ${osmId}`);
       continue;
     }
     graph.coords[nodeData.idx] = [nodeData.lat, nodeData.lon];
@@ -241,6 +240,7 @@ function astar(graph, startIdx, goalIdx, opts = {}) {
   const {
     walkSpeed = 1.4,   // m/s (~5.0 km/h)
     shadePreference = 0.0, // 0 = no preference, 1 = strong shade preference
+    pedestrianPathPreference = 0.2 // 0 = no preference, 1 = strong pedestrian path preference
   } = opts;
 
   const N = graph.adj.length;
@@ -277,7 +277,7 @@ function astar(graph, startIdx, goalIdx, opts = {}) {
     for (const edge of graph.adj[current]) {
       const neighbor = edge.to;
 
-      // Calculate edge cost with shade preference
+      // Calculate edge cost with shade preference and path type preference
       const shade = graph.shadeByEdgeId?.get(edge.eid) ?? 0;
       const sunExposure = 1 - shade;
 
@@ -285,8 +285,12 @@ function astar(graph, startIdx, goalIdx, opts = {}) {
       const shadeBonus = shadePreference * shade;
       const sunPenalty = shadePreference * sunExposure;
 
+      // Pedestrian-only path preference (lower cost multiplier = higher preference)
+      const isPedestrianOnly = ['footway', 'path', 'pedestrian', 'steps'].includes(edge.highway);
+      const pathTypeMultiplier = isPedestrianOnly ? (1-pedestrianPathPreference) : 1.0;
+
       const baseTime = edge.length / walkSpeed;
-      const edgeTime = baseTime * (1 + sunPenalty - shadeBonus);
+      const edgeTime = baseTime * pathTypeMultiplier * (1 + sunPenalty - shadeBonus);
 
       const tentativeG = g[current] + edgeTime;
 
