@@ -1,4 +1,5 @@
 import SunCalc from 'suncalc';
+import { sweepPolygon } from './pathSweep';
 
 export const calculateSolarPosition = (date, latitude, longitude) => {
   const sunPosition = SunCalc.getPosition(date, latitude, longitude);
@@ -31,39 +32,13 @@ export const calculateShadowFootprints = (building, solarPosition, groundLevel =
   const latitude = buildingCoordinates[0][1]; // Use building's latitude
   const metersPerDegreeLat = 111320;
   const metersPerDegreeLng = 111320 * Math.cos(latitude * Math.PI / 180);
-  
-  const shadowCoordinates = buildingCoordinates.map(coord => [
-    coord[0] + shadowOffset.x / metersPerDegreeLng,
-    coord[1] + shadowOffset.y / metersPerDegreeLat
-  ]);
 
-  let parallelogramCoordinates = [];
-  for (let i = 0; i < buildingCoordinates.length - 1; i++) {
-    parallelogramCoordinates.push([
-      buildingCoordinates[i],
-      buildingCoordinates[i + 1],
-      shadowCoordinates[i + 1],
-      shadowCoordinates[i]
-    ]);
-  }
-
-  const allCoordinates = [
-    ...parallelogramCoordinates,
-    shadowCoordinates
+  const shadowVector = [
+    shadowOffset.x / metersPerDegreeLng,
+    shadowOffset.y / metersPerDegreeLat
   ];
-
-  return allCoordinates.map(coords => ({
-    type: 'Feature',
-    geometry: {
-      type: 'Polygon',
-      coordinates: [coords]
-    },
-    properties: {
-      buildingId: building.properties?.['@id'] || 'unknown',
-      shadowLength,
-      buildingHeight: building.height
-    }
-  }));
+  const shadowPolygon = sweepPolygon(building, shadowVector);
+  return shadowPolygon;
 };
 
 export const generateShadowLayer = (buildings, solarPosition) => {
