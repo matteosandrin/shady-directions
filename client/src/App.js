@@ -24,6 +24,7 @@ function App() {
   const [endPoint, setEndPoint] = useState(null);
   const [route, setRoute] = useState(null);
   const [isLoadingRoute, setIsLoadingRoute] = useState(false);
+  const [routeStats, setRouteStats] = useState(null);
 
   const solarPosition = useMemo(() => {
     const date = parseDateTime(selectedDateTime);
@@ -88,6 +89,7 @@ function App() {
     setStartPoint(null);
     setEndPoint(null);
     setRoute(null);
+    setRouteStats(null);
   }, []);
 
   // Initialize map
@@ -145,7 +147,10 @@ function App() {
     if (shadowLayer.current) {
       shadowLayer.current.updateDate(parseDateTime(selectedDateTime));
       if (route) {
-        setTimeout(() => updateRouteShade(route, shadowLayer.current, map.current), 100);
+        setTimeout(() => {
+          const stats = updateRouteShade(route, shadowLayer.current, map.current);
+          setRouteStats(stats);
+        }, 100);
       }
     }
   }, [selectedDateTime, route]);
@@ -267,7 +272,8 @@ function App() {
           'line-opacity': 0.75
         }
       }, '3d-buildings');
-      updateRouteShade(route, shadowLayer.current, map.current);
+      const stats = updateRouteShade(route, shadowLayer.current, map.current);
+      setRouteStats(stats);
     }
   }, [route]);
 
@@ -288,6 +294,7 @@ function App() {
         routeData={route}
         isProcessingRoute={isLoadingRoute}
         clearRoute={clearRoute}
+        routeStats={routeStats}
       />
     </div>
   );

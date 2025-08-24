@@ -59,14 +59,27 @@ function analyzeRouteForShade(route, shadowLayer, map) {
   let currentShadedSegment = null;
   let currentSunnySegment = null;
   
+  // Calculate distances and group segments
+  let totalShadedDistance = 0;
+  let totalSunnyDistance = 0;
+
   segments.forEach(segment => {
+    // Calculate segment distance
+    const [point1, point2] = segment.coordinates;
+    const deltaLng = point2[0] - point1[0];
+    const deltaLat = point2[1] - point1[1];
+    const segmentDistance = Math.sqrt(deltaLng * deltaLng + deltaLat * deltaLat) * 111320; // rough meters
+    
     if (segment.isShaded) {
+      totalShadedDistance += segmentDistance;
       // Add to shaded segments
       if (currentShadedSegment) {
         currentShadedSegment.coordinates.push(segment.coordinates[1]);
+        currentShadedSegment.distance += segmentDistance;
       } else {
         currentShadedSegment = {
-          coordinates: [segment.coordinates[0], segment.coordinates[1]]
+          coordinates: [segment.coordinates[0], segment.coordinates[1]],
+          distance: segmentDistance
         };
       }
       // End sunny segment if exists
@@ -75,12 +88,15 @@ function analyzeRouteForShade(route, shadowLayer, map) {
         currentSunnySegment = null;
       }
     } else {
+      totalSunnyDistance += segmentDistance;
       // Add to sunny segments
       if (currentSunnySegment) {
         currentSunnySegment.coordinates.push(segment.coordinates[1]);
+        currentSunnySegment.distance += segmentDistance;
       } else {
         currentSunnySegment = {
-          coordinates: [segment.coordinates[0], segment.coordinates[1]]
+          coordinates: [segment.coordinates[0], segment.coordinates[1]],
+          distance: segmentDistance
         };
       }
       // End shaded segment if exists
@@ -95,7 +111,22 @@ function analyzeRouteForShade(route, shadowLayer, map) {
   if (currentShadedSegment) shadedSegments.push(currentShadedSegment);
   if (currentSunnySegment) sunnySegments.push(currentSunnySegment);
 
-  return { shadedSegments, sunnySegments };
+  // Calculate percentages based on distance
+  const totalDistance = totalShadedDistance + totalSunnyDistance;
+  const shadedPercentage = totalDistance > 0 ? Math.round((totalShadedDistance / totalDistance) * 100) : 0;
+  const sunnyPercentage = totalDistance > 0 ? Math.round((totalSunnyDistance / totalDistance) * 100) : 0;
+
+  return { 
+    shadedSegments, 
+    sunnySegments, 
+    stats: {
+      shadedPercentage,
+      sunnyPercentage,
+      totalDistance: Math.round(totalDistance),
+      shadedDistance: Math.round(totalShadedDistance),
+      sunnyDistance: Math.round(totalSunnyDistance)
+    }
+  };
 }
 
 /**
@@ -204,7 +235,8 @@ function drawRouteSegments(shadedSegments, sunnySegments, map) {
  * @param {Object} map - Mapbox map instance
  */
 export function updateRouteShade(route, shadowLayer, map) {
-  const { shadedSegments, sunnySegments } = analyzeRouteForShade(route, shadowLayer, map);
+  const { shadedSegments, sunnySegments, stats } = analyzeRouteForShade(route, shadowLayer, map);
   drawRouteSegments(shadedSegments, sunnySegments, map);
-  console.log(`Route analysis complete: ${shadedSegments.length} shaded segments, ${sunnySegments.length} sunny segments`);
+  console.log(`Route analysis complete: ${stats.shadedPercentage}% shaded (${stats.shadedDistance}m), ${stats.sunnyPercentage}% sunny (${stats.sunnyDistance}m), total: ${stats.totalDistance}m`);
+  return stats;
 }

@@ -14,7 +14,7 @@ const ControlPanel = ({
   isProcessingRoute,
   clearRoute,
   shadyPathSections,
-  pathStats
+  routeStats
 }) => {
   return (
     <>
@@ -107,6 +107,34 @@ const ControlPanel = ({
                 <div style={{ marginTop: '8px', fontSize: '11px', color: '#aaa'}}>
                   <div>Distance: {(routeData.distance / 1000).toFixed(2)} km</div>
                   <div>Duration: {Math.round(routeData.duration / 60)} min</div>
+                  
+                  {routeStats && (
+                    <div style={{ marginTop: '8px', borderTop: '1px solid #444', paddingTop: '8px' }}>
+                      <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '4px', color: '#fff' }}>
+                        Shade Analysis:
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', marginBottom: '2px' }}>
+                        <div style={{ 
+                          width: '12px', 
+                          height: '12px', 
+                          backgroundColor: '#8b5cf6', 
+                          marginRight: '6px',
+                          borderRadius: '2px'
+                        }}></div>
+                        <span>Shaded: {routeStats.shadedPercentage}% ({routeStats.shadedDistance}m)</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <div style={{ 
+                          width: '12px', 
+                          height: '12px', 
+                          backgroundColor: '#fbbf24', 
+                          marginRight: '6px',
+                          borderRadius: '2px'
+                        }}></div>
+                        <span>Sunny: {routeStats.sunnyPercentage}% ({routeStats.sunnyDistance}m)</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
