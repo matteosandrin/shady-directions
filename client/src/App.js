@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { calculateSolarPosition, formatDateTime, parseDateTime } from './shadowUtils';
 import { BuildingShadows } from './shadowShader';
+import { isPointInShadow, debugShadowDetectionArea } from './shadowShaderUtils';
 import ErrorScreen from './components/ErrorScreen';
 import ControlPanel from './components/ControlPanel';
 
@@ -9,14 +10,6 @@ import ControlPanel from './components/ControlPanel';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_ACCESS_TOKEN;
-
-const detectMobile = () => {
-  const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
-  const isMobileUserAgent = mobileRegex.test(navigator.userAgent);
-  const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-  const isSmallScreen = window.innerWidth <= 768;
-  return isMobileUserAgent || (isTouchDevice && isSmallScreen);
-};
 
 const manhattanCenter = { lat: 40.7128, lng: -74.006 };
 
@@ -27,7 +20,6 @@ function App() {
 
   const [error] = useState(null);
   const [selectedDateTime, setSelectedDateTime] = useState(formatDateTime(new Date()));
-  const [isMobile, _] = useState(detectMobile());
   const [startPoint, setStartPoint] = useState(null);
   const [endPoint, setEndPoint] = useState(null);
   const [route, setRoute] = useState(null);
@@ -76,10 +68,6 @@ function App() {
 
   const handleMapClick = useCallback((e) => {
     const { lng, lat } = e.lngLat;
-
-    console.log('Map clicked:', { lng, lat });
-    console.log('Current state:', { startPoint, endPoint });
-
     if (!startPoint) {
       console.log('Setting start point');
       setStartPoint({ lng, lat });
@@ -135,13 +123,11 @@ function App() {
         }, 'road-label');
 
         // Add GPU-accelerated shadow layer
-        if (!isMobile) {
-          shadowLayer.current = new BuildingShadows();
-          map.current.addLayer(shadowLayer.current, '3d-buildings');
-        }
+        shadowLayer.current = new BuildingShadows();
+        map.current.addLayer(shadowLayer.current, '3d-buildings');
       });
     }
-  }, [error, isMobile]);
+  }, [error]);
 
   // Add click handler in a separate effect
   useEffect(() => {
@@ -156,7 +142,7 @@ function App() {
 
   // Update shadow layer when solar position changes
   useEffect(() => {
-    if (shadowLayer.current && !isMobile) {
+    if (shadowLayer.current) {
       shadowLayer.current.updateDate(parseDateTime(selectedDateTime));
     }
   }, [selectedDateTime]);
