@@ -66,131 +66,68 @@ const ControlPanel = ({
             </div>
           )}
         </div>
-        
-        <div style={{ borderTop: '1px solid #444', paddingTop: '10px', marginTop: '10px' }}>
-          <h4 style={{ margin: '0 0 8px 0', fontSize: '13px' }}>Walking Directions</h4>
-          
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <button
-              onClick={() => {
-                setIsSelectingStart(true);
-                setIsSelectingEnd(false);
-              }}
-              disabled={isSelectingStart}
-              style={{
-                padding: '6px 8px',
-                fontSize: '11px',
-                backgroundColor: isSelectingStart ? '#4CAF50' : '#555',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: isSelectingStart ? 'default' : 'pointer'
-              }}
-            >
-              {isSelectingStart ? 'Click map for start...' : 'Set Start Point'}
-            </button>
-            
-            <button
-              onClick={() => {
-                setIsSelectingEnd(true);
-                setIsSelectingStart(false);
-              }}
-              disabled={isSelectingEnd}
-              style={{
-                padding: '6px 8px',
-                fontSize: '11px',
-                backgroundColor: isSelectingEnd ? '#f44336' : '#555',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: isSelectingEnd ? 'default' : 'pointer'
-              }}
-            >
-              {isSelectingEnd ? 'Click map for end...' : 'Set End Point'}
-            </button>
-            
-            {(startPoint || endPoint || routeData) && (
-              <button
-                onClick={clearRoute}
-                style={{
-                  padding: '6px 8px',
-                  fontSize: '11px',
-                  backgroundColor: '#666',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
-              >
-                Clear Route
-              </button>
-            )}
-          </div>
-          
-          {startPoint && (
-            <div style={{ fontSize: '10px', color: '#aaa', marginTop: '4px' }}>
-              Start: {startPoint.latitude.toFixed(4)}, {startPoint.longitude.toFixed(4)}
-            </div>
-          )}
-          
-          {endPoint && (
-            <div style={{ fontSize: '10px', color: '#aaa', marginTop: '2px' }}>
-              End: {endPoint.latitude.toFixed(4)}, {endPoint.longitude.toFixed(4)}
-            </div>
-          )}
-          
-          {isProcessingRoute && (
-            <div style={{ 
-              fontSize: '11px', 
-              color: '#4CAF50', 
-              marginTop: '8px',
-              padding: '6px 8px',
-              backgroundColor: 'rgba(76, 175, 80, 0.1)',
-              borderRadius: '4px',
-              border: '1px solid rgba(76, 175, 80, 0.3)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}>
-              <div style={{
-                width: '12px',
-                height: '12px',
-                border: '2px solid #4CAF50',
-                borderTop: '2px solid transparent',
-                borderRadius: '50%',
-                animation: 'spin 1s linear infinite'
-              }}></div>
-              Computing walking route...
-            </div>
-          )}
 
-          {routeData && !isProcessingRoute && (
-            <div style={{ fontSize: '10px', color: '#aaa', marginTop: '4px' }}>
-              Route: {(routeData.distance / 1000).toFixed(2)}km, {Math.round(routeData.duration / 60)}min
+        <div style={{ marginTop: '15px', borderTop: '1px solid #555', paddingTop: '15px' }}>
+          <h4 style={{ margin: '0 0 10px 0', fontSize: '16px' }}>Route Planning</h4>
+          
+          {!startPoint && !endPoint && (
+            <div style={{ color: '#aaa', fontSize: '12px' }}>
+              Click on map to set start point
             </div>
           )}
           
-          {routeData && shadyPathSections && pathStats && (
-            <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #444' }}>
-              <div style={{ fontSize: '11px', fontWeight: 'bold', marginBottom: '4px' }}>Path Analysis:</div>
-              
-              <div style={{ fontSize: '10px', color: '#aaa', marginBottom: '6px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <div style={{ width: '12px', height: '3px', backgroundColor: '#FFC107' }}></div>
-                    <span>Sunny</span>
-                  </div>
-                  <span>{pathStats.sunPercentage}% ({pathStats.sunnyDistance}m)</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <div style={{ width: '12px', height: '3px', backgroundColor: '#8A2BE2' }}></div>
-                    <span>Shady</span>
-                  </div>
-                  <span>{pathStats.shadePercentage}% ({pathStats.shadyDistance}m)</span>
-                </div>
-              </div>
+          {startPoint && !endPoint && (
+            <div style={{ color: '#aaa', fontSize: '12px' }}>
+              <div style={{ color: '#00ff00' }}>✓ Start point set</div>
+              <div>Click on map to set end point</div>
             </div>
+          )}
+          
+          {startPoint && endPoint && (
+            <div style={{ fontSize: '12px' }}>
+              <div style={{ color: '#00ff00' }}>✓ Start point set</div>
+              <div style={{ color: '#00ff00' }}>✓ End point set</div>
+              
+              {isProcessingRoute && (
+                <div style={{ display: 'flex', alignItems: 'center', marginTop: '8px' }}>
+                  <div style={{
+                    width: '16px',
+                    height: '16px',
+                    border: '2px solid #555',
+                    borderTop: '2px solid #white',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite',
+                    marginRight: '8px'
+                  }}></div>
+                  Calculating route...
+                </div>
+              )}
+              
+              {routeData && !isProcessingRoute && (
+                <div style={{ marginTop: '8px', fontSize: '11px', color: '#aaa'}}>
+                  <div>Distance: {(routeData.distance / 1000).toFixed(2)} km</div>
+                  <div>Duration: {Math.round(routeData.duration / 60)} min</div>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {(startPoint || endPoint) && (
+            <button
+              onClick={clearRoute}
+              style={{
+                marginTop: '10px',
+                padding: '8px 16px',
+                backgroundColor: '#dc3545',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '12px'
+              }}
+            >
+              Clear Route
+            </button>
           )}
         </div>
       </div>

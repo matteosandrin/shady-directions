@@ -1,325 +1,259 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Map } from 'react-map-gl';
-import DeckGL from '@deck.gl/react';
-import { GeoJsonLayer, ScatterplotLayer, PathLayer } from '@deck.gl/layers';
-import { calculateSolarPosition, generateShadowLayer, formatDateTime, parseDateTime } from './shadowUtils';
-import { getShadyPathSections, calculateShadePercentages, createGroupedPaths, chunkRoute } from './pathIntersection';
-import LoadingScreen from './components/LoadingScreen';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import mapboxgl from 'mapbox-gl';
+import { calculateSolarPosition, formatDateTime, parseDateTime } from './shadowUtils';
+import { BuildingShadows } from './shadowShader';
 import ErrorScreen from './components/ErrorScreen';
 import ControlPanel from './components/ControlPanel';
 
-const MAPBOX_ACCESS_TOKEN = process.env.REACT_APP_MAPBOX_ACCESS_TOKEN;
+// Import Mapbox CSS
+import 'mapbox-gl/dist/mapbox-gl.css';
+
+mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_ACCESS_TOKEN;
 
 const detectMobile = () => {
-  // Check for mobile user agents
   const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
   const isMobileUserAgent = mobileRegex.test(navigator.userAgent);
-  
-  // Check for touch capability
   const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-  
-  // Check screen size (typical mobile breakpoint)
   const isSmallScreen = window.innerWidth <= 768;
-  
-  // Consider it mobile if any of these conditions are true
   return isMobileUserAgent || (isTouchDevice && isSmallScreen);
 };
 
-const INITIAL_VIEW_STATE = {
-  longitude: -74.006,
-  latitude: 40.7128,
-  zoom: 13,
-  pitch: 0,
-  bearing: 0
-};
+const manhattanCenter = { lat: 40.7128, lng: -74.006 };
 
 function App() {
-  const [geojsonData, setGeojsonData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const mapContainer = useRef(null);
+  const map = useRef(null);
+  const shadowLayer = useRef(null);
+
+  const [error] = useState(null);
   const [selectedDateTime, setSelectedDateTime] = useState(formatDateTime(new Date()));
+  const [isMobile, _] = useState(detectMobile());
   const [startPoint, setStartPoint] = useState(null);
   const [endPoint, setEndPoint] = useState(null);
-  const [routeData, setRouteData] = useState(null);
-  const [isSelectingStart, setIsSelectingStart] = useState(false);
-  const [isSelectingEnd, setIsSelectingEnd] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  const [isProcessingRoute, setIsProcessingRoute] = useState(false);
-  
-  const manhattanCenter = { lat: 40.7128, lng: -74.006 };
+  const [route, setRoute] = useState(null);
+  const [isLoadingRoute, setIsLoadingRoute] = useState(false);
 
+  const solarPosition = useMemo(() => {
+    const date = parseDateTime(selectedDateTime);
+    return calculateSolarPosition(date, manhattanCenter.lat, manhattanCenter.lng);
+  }, [selectedDateTime]);
 
-  useEffect(() => {
-    fetchGeojsonData();
-    setIsSelectingStart(true);
-    setIsMobile(detectMobile());
-  }, []);
+  const fetchRoute = useCallback(async (start, end) => {
+    if (!start || !end) return;
 
-  const processGeojsonData = (data) => {
-    const processedFeatures = data.features.map(feature => {
-      if (feature.geometry.type === 'MultiPolygon') {
-        return feature.geometry.coordinates.map((polygon, index) => ({
-          ...feature,
-          geometry: {
-            type: 'Polygon',
-            coordinates: polygon
-          },
-          properties: {
-            ...feature.properties,
-            _multipart: index
-          }
-        }));
-      }
-      return feature;
-    }).flat().filter(feature => {
-      const properties = feature.properties || {};
-      const isUnderground = properties.location === 'underground';
-      return !isUnderground;
-    });
-
-
-    return {
-      ...data,
-      features: processedFeatures
-    };
-  };
-
-  const fetchGeojsonData = async () => {
-    try {
-      const response = await fetch('/data/manhattan.geojson');
-      const result = await response.json();
-      
-      if (response.ok) {
-        const processedData = processGeojsonData(result);
-        setGeojsonData(processedData);
-      } else {
-        setError('Failed to load data');
-      }
-    } catch (err) {
-      setError('Error connecting to server: ' + err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchRoute = async (start, end) => {
-    setIsProcessingRoute(true);
+    setIsLoadingRoute(true);
     try {
       const response = await fetch('/directions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ start, end }),
+        body: JSON.stringify({
+          start: {
+            latitude: start.lat,
+            longitude: start.lng
+          },
+          end: {
+            latitude: end.lat,
+            longitude: end.lng
+          }
+        })
       });
-      const result = await response.json();
-      
-      if (result.success) {
-        // make the route more granular so we can show the shaded sections with
-        // higher resolution
-        const chunkedRoute = chunkRoute(result.route);
-        setRouteData(chunkedRoute);
-      } else {
-        console.error('Route calculation failed:', result.error);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-    } catch (err) {
-      console.error('Error fetching route:', err);
+
+      const routeData = await response.json();
+      setRoute(routeData.route);
+    } catch (error) {
+      console.error('Error fetching route:', error);
+      setRoute(null);
     } finally {
-      setIsProcessingRoute(false);
+      setIsLoadingRoute(false);
     }
-  };
+  }, []);
 
-  const handleMapClick = (info) => {
-    if (!info.coordinate) return;
-    
-    const [longitude, latitude] = info.coordinate;
-    const point = { longitude, latitude };
-    
-    if (isSelectingStart) {
-      setStartPoint(point);
-      setIsSelectingStart(false);
-      if (endPoint) {
-        fetchRoute(point, endPoint);
-      } else {
-        setIsSelectingEnd(true);
-      }
-    } else if (isSelectingEnd) {
-      setEndPoint(point);
-      setIsSelectingEnd(false);
-      if (startPoint) {
-        fetchRoute(startPoint, point);
-      }
+  const handleMapClick = useCallback((e) => {
+    const { lng, lat } = e.lngLat;
+
+    console.log('Map clicked:', { lng, lat });
+    console.log('Current state:', { startPoint, endPoint });
+
+    if (!startPoint) {
+      console.log('Setting start point');
+      setStartPoint({ lng, lat });
+    } else if (!endPoint) {
+      console.log('Setting end point');
+      const end = { lng, lat };
+      setEndPoint(end);
+      fetchRoute(startPoint, end);
+    } else {
+      console.log('Resetting points');
+      setStartPoint({ lng, lat });
+      setEndPoint(null);
+      setRoute(null);
     }
-  };
+  }, [startPoint, endPoint, fetchRoute]);
 
-  const clearRoute = () => {
+  const clearRoute = useCallback(() => {
     setStartPoint(null);
     setEndPoint(null);
-    setRouteData(null);
-    setIsSelectingStart(false);
-    setIsSelectingEnd(false);
-    setIsProcessingRoute(false);
-  };
+    setRoute(null);
+  }, []);
 
-  const solarPosition = useMemo(() => {
-    const date = parseDateTime(selectedDateTime);
-    return calculateSolarPosition(date, manhattanCenter.lat, manhattanCenter.lng);
-  }, [selectedDateTime, manhattanCenter.lat, manhattanCenter.lng]);
+  // Initialize map
+  useEffect(() => {
+    if (!error && !map.current && mapContainer.current) {
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: 'mapbox://styles/mapbox/light-v10',
+        center: [manhattanCenter.lng, manhattanCenter.lat],
+        zoom: 15,
+        pitch: 0,
+        bearing: 0
+      });
 
-  const getHeightFromFeature = (feature) => {
-    const properties = feature.properties || {};
-    const heightValue = properties.height || properties.HEIGHT || 0;
-    return parseFloat(heightValue);
-  };
+      // Add buildings layer when map loads
+      map.current.on('load', () => {
+        // Remove default building layer if it exists
+        if (map.current.getLayer('building')) {
+          map.current.removeLayer('building');
+        }
+        map.current.addLayer({
+          'id': '3d-buildings',
+          'source': 'composite',
+          'source-layer': 'building',
+          'type': 'fill-extrusion',
+          'minzoom': 14,
+          'paint': {
+            'fill-extrusion-color': '#376C85',
+            'fill-extrusion-height': ["number", ["get", "height"], 5],
+            'fill-extrusion-base': ["number", ["get", "min_height"], 0],
+            'fill-extrusion-opacity': 1
+          }
+        }, 'road-label');
 
-  const hexToRgb = (hex) => {
-    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    return result ? [
-      parseInt(result[1], 16),
-      parseInt(result[2], 16),
-      parseInt(result[3], 16)
-    ] : [0, 0, 0];
-  };
-
-  const getColorFromHeight = (height) => {
-    // Set your min and max colors here as hex values
-    const minHeightColor = '#C9E0EB'; // Blue for shortest buildings
-    const maxHeightColor = '#376C85'; // Green for tallest buildings
-    
-    const min = 0;
-    const max = 35;
-    
-    const normalized = Math.max(0, Math.min(1, (height - min) / (max - min)));
-    
-    // Convert hex colors to RGB
-    const minRgb = hexToRgb(minHeightColor);
-    const maxRgb = hexToRgb(maxHeightColor);
-    
-    // Linear interpolation between the two colors
-    const red = Math.round(minRgb[0] + (maxRgb[0] - minRgb[0]) * normalized);
-    const green = Math.round(minRgb[1] + (maxRgb[1] - minRgb[1]) * normalized);
-    const blue = Math.round(minRgb[2] + (maxRgb[2] - minRgb[2]) * normalized);
-    
-    return [red, green, blue, 255];
-  };
-
-  const shadowData = useMemo(() => {
-    if (!geojsonData) return null;
-    return generateShadowLayer(geojsonData.features, solarPosition);
-  }, [geojsonData, solarPosition]);
-
-  const shadyPathSections = useMemo(() => {
-    if (!routeData || !shadowData) return null;
-    
-    const pathCoordinates = routeData.coordinates;
-    const shadowPolygons = shadowData.features;
-    
-    return getShadyPathSections(pathCoordinates, shadowPolygons);
-  }, [routeData, shadowData]);
-
-  const pathStats = useMemo(() => {
-    if (!shadyPathSections) return null;
-    return calculateShadePercentages(shadyPathSections);
-  }, [shadyPathSections]);
-
-  const groupedPaths = useMemo(() => {
-    if (!shadyPathSections) return null;
-    return createGroupedPaths(shadyPathSections);
-  }, [shadyPathSections]);
-
-  const layers = useMemo(() => {
-    if (!geojsonData) return [];
-    try {
-      return [
-        ...((shadowData && !isMobile) ? [
-          new GeoJsonLayer({
-            id: 'shadows',
-            data: shadowData,
-            extruded: false,
-            filled: true,
-            getFillColor: [0, 0, 0, 80],
-            getLineColor: [0, 0, 0, 0],
-            getLineWidth: 0,
-            lineWidthMinPixels: 0,
-            parameters: {
-              depthTest: false,
-              depthMask: false,
-              blend: true,
-              blendFunc: [774, 0],
-              blendEquation: 32776
-            }
-          })
-        ] : []),
-        new GeoJsonLayer({
-          id: 'buildings',
-          data: geojsonData,
-          extruded: false,
-          wireframe: false,
-          filled: true,
-          getElevation: 0,
-          getFillColor: d => getColorFromHeight(getHeightFromFeature(d)),
-          getLineWidth: 0,
-          lineWidthMinPixels: 0,
-          pickable: true,
-        }),
-    ...(routeData && groupedPaths ? [
-      ...groupedPaths.sunnyPaths.map((path, index) => 
-        new PathLayer({
-          id: `route-sunny-${index}`,
-          data: [path],
-          getPath: d => d.coordinates,
-          getColor: [255, 193, 7, 200], // Yellow/orange for sunny sections
-          getWidth: 3,
-          widthMinPixels: 3
-        })
-      ),
-      ...groupedPaths.shadyPaths.map((path, index) => 
-        new PathLayer({
-          id: `route-shady-${index}`,
-          data: [path],
-          getPath: d => d.coordinates,
-          getColor: [138, 43, 226, 200], // Purple for shady sections
-          getWidth: 3,
-          widthMinPixels: 3
-        })
-      )
-    ] : routeData ? [
-      // Fallback to single color if shadows are disabled
-      new PathLayer({
-        id: 'route',
-        data: [routeData],
-        getPath: d => d.coordinates,
-        getColor: [0, 150, 255, 200],
-        getWidth: 8,
-        widthMinPixels: 3
-      })
-    ] : []),
-    ...((startPoint || endPoint) ? [
-      new ScatterplotLayer({
-        id: 'waypoints',
-        data: [
-          ...(startPoint ? [{...startPoint, type: 'start'}] : []),
-          ...(endPoint ? [{...endPoint, type: 'end'}] : [])
-        ],
-        getPosition: d => [d.longitude, d.latitude, 0],
-        getRadius: 4,
-        getFillColor: d => d.type === 'start' ? [0, 255, 0, 255] : [255, 0, 0, 255],
-        getLineColor: [255, 255, 255, 255],
-        getLineWidth: 2,
-        radiusMinPixels: 4,
-        pickable: true
-      })
-    ] : [])
-      ];
-    } catch (error) {
-      console.error('Error creating layers:', error);
-      return [];
+        // Add GPU-accelerated shadow layer
+        if (!isMobile) {
+          shadowLayer.current = new BuildingShadows();
+          map.current.addLayer(shadowLayer.current, '3d-buildings');
+        }
+      });
     }
-  }, [geojsonData, shadowData, routeData, groupedPaths, startPoint, endPoint, isMobile]);
+  }, [error, isMobile]);
 
-  if (loading) {
-    return <LoadingScreen />;
-  }
+  // Add click handler in a separate effect
+  useEffect(() => {
+    if (!map.current) return;
+
+    map.current.on('click', handleMapClick);
+
+    return () => {
+      map.current.off('click', handleMapClick);
+    };
+  }, [handleMapClick]);
+
+  // Update shadow layer when solar position changes
+  useEffect(() => {
+    if (shadowLayer.current && !isMobile) {
+      shadowLayer.current.updateDate(parseDateTime(selectedDateTime));
+    }
+  }, [selectedDateTime]);
+
+  // Add/update markers when points change
+  useEffect(() => {
+    if (!map.current) return;
+
+    // Remove existing markers
+    const existingMarkers = document.querySelectorAll('.route-marker');
+    existingMarkers.forEach(marker => marker.remove());
+
+    // Add start point marker
+    if (startPoint) {
+      const startEl = document.createElement('div');
+      startEl.className = 'route-marker';
+      startEl.style.cssText = `
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background-color: #00ff00;
+        border: 1px solid white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        cursor: pointer;
+      `;
+      
+      const startMarker = new mapboxgl.Marker(startEl)
+        .setLngLat([startPoint.lng, startPoint.lat])
+        .addTo(map.current);
+    }
+
+    // Add end point marker
+    if (endPoint) {
+      const endEl = document.createElement('div');
+      endEl.className = 'route-marker';
+      endEl.style.cssText = `
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background-color: #ff0000;
+        border: 1px solid white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        cursor: pointer;
+      `;
+      
+      const endMarker = new mapboxgl.Marker(endEl)
+        .setLngLat([endPoint.lng, endPoint.lat])
+        .addTo(map.current);
+    }
+  }, [startPoint, endPoint]);
+
+  // Add/update route when route data changes
+  useEffect(() => {
+    if (!map.current) return;
+
+    const routeSourceId = 'route';
+    const routeLayerId = 'route-line';
+
+    // Remove existing route
+    if (map.current.getLayer(routeLayerId)) {
+      map.current.removeLayer(routeLayerId);
+    }
+    if (map.current.getSource(routeSourceId)) {
+      map.current.removeSource(routeSourceId);
+    }
+
+    // Add new route
+    if (route) {
+      console.log('Adding route to map:', route);
+      map.current.addSource(routeSourceId, {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          properties: {},
+          geometry: {
+            type: 'LineString',
+            coordinates: route.coordinates
+          }
+        }
+      });
+
+      map.current.addLayer({
+        id: routeLayerId,
+        type: 'line',
+        source: routeSourceId,
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round'
+        },
+        paint: {
+          'line-color': '#3887be',
+          'line-width': 5,
+          'line-opacity': 0.75
+        }
+      }, '3d-buildings');
+    }
+  }, [route]);
 
   if (error) {
     return <ErrorScreen error={error} />;
@@ -327,47 +261,17 @@ function App() {
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
-      <DeckGL
-        initialViewState={INITIAL_VIEW_STATE}
-        controller={{
-          scrollZoom: { speed: 0.05, smooth: false },
-          doubleClickZoom: true,
-          touchRotate: false,
-          touchZoom: true,
-          keyboard: { moveSpeed: 100 },
-          minPitch: 0,
-          maxPitch: 0
-        }}
-        layers={layers}
-        onClick={handleMapClick}
-        onError={(error) => {
-          console.error('DeckGL Error:', error);
-          setError('3D rendering error. Try refreshing the page.');
-        }}
-        style={{ width: '100%', height: '100%' }}
-      >
-        <Map
-          mapboxAccessToken={MAPBOX_ACCESS_TOKEN}
-          mapStyle="mapbox://styles/mapbox/light-v10"
-          style={{ width: '100%', height: '100%' }}
-        />
-      </DeckGL>
-      
+      <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
+
       <ControlPanel
         selectedDateTime={selectedDateTime}
         setSelectedDateTime={setSelectedDateTime}
         solarPosition={solarPosition}
-        isSelectingStart={isSelectingStart}
-        setIsSelectingStart={setIsSelectingStart}
-        isSelectingEnd={isSelectingEnd}
-        setIsSelectingEnd={setIsSelectingEnd}
         startPoint={startPoint}
         endPoint={endPoint}
-        routeData={routeData}
-        isProcessingRoute={isProcessingRoute}
+        routeData={route}
+        isProcessingRoute={isLoadingRoute}
         clearRoute={clearRoute}
-        shadyPathSections={shadyPathSections}
-        pathStats={pathStats}
       />
     </div>
   );
