@@ -147,6 +147,25 @@ function App() {
     }
   }, [selectedDateTime]);
 
+  // Handle viewport resize to redraw shadow shader
+  useEffect(() => {
+    if (!map.current) return;
+
+    const handleResize = () => {
+      if (shadowLayer.current && map.current) {
+        // Trigger a repaint of the shadow layer by removing and re-adding it
+        map.current.removeLayer(shadowLayer.current.id);
+        map.current.addLayer(shadowLayer.current, '3d-buildings');
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
   // Add/update markers when points change
   useEffect(() => {
     if (!map.current) return;
