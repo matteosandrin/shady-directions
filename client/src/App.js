@@ -100,6 +100,7 @@ function App() {
         style: 'mapbox://styles/mapbox/light-v10',
         center: [manhattanCenter.lng, manhattanCenter.lat],
         zoom: 15,
+        minZoom: 15,
         pitch: 0,
         bearing: 0
       });
@@ -115,7 +116,6 @@ function App() {
           'source': 'composite',
           'source-layer': 'building',
           'type': 'fill-extrusion',
-          'minzoom': 14,
           'filter': [
             'all',
             ['>', ['get', 'height'], 0],
