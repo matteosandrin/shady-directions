@@ -116,6 +116,11 @@ function App() {
           'source-layer': 'building',
           'type': 'fill-extrusion',
           'minzoom': 14,
+          'filter': [
+            'all',
+            ['>', ['get', 'height'], 0],
+            ['!=', ['get', 'underground'], 'true']
+          ],
           'paint': {
             'fill-extrusion-color': '#376C85',
             'fill-extrusion-height': ["number", ["get", "height"], 5],
