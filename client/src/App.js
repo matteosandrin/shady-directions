@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { calculateSolarPosition, formatDateTime, parseDateTime } from './shadowUtils';
 import { BuildingShadows } from './shadowShader';
-import { isPointInShadow, debugShadowDetectionArea } from './shadowShaderUtils';
+import { updateRouteShade } from './route';
 import ErrorScreen from './components/ErrorScreen';
 import ControlPanel from './components/ControlPanel';
 
@@ -144,8 +144,11 @@ function App() {
   useEffect(() => {
     if (shadowLayer.current) {
       shadowLayer.current.updateDate(parseDateTime(selectedDateTime));
+      if (route) {
+        setTimeout(() => updateRouteShade(route, shadowLayer.current, map.current), 100);
+      }
     }
-  }, [selectedDateTime]);
+  }, [selectedDateTime, route]);
 
   // Handle viewport resize to redraw shadow shader
   useEffect(() => {
@@ -219,14 +222,22 @@ function App() {
 
     const routeSourceId = 'route';
     const routeLayerId = 'route-line';
+    const shadedRouteSourceId = 'shaded-route';
+    const shadedRouteLayerId = 'shaded-route-line';
+    const sunnyRouteSourceId = 'sunny-route';
+    const sunnyRouteLayerId = 'sunny-route-line';
 
-    // Remove existing route
-    if (map.current.getLayer(routeLayerId)) {
-      map.current.removeLayer(routeLayerId);
-    }
-    if (map.current.getSource(routeSourceId)) {
-      map.current.removeSource(routeSourceId);
-    }
+    // Remove existing route layers
+    [routeLayerId, shadedRouteLayerId, sunnyRouteLayerId].forEach(layerId => {
+      if (map.current.getLayer(layerId)) {
+        map.current.removeLayer(layerId);
+      }
+    });
+    [routeSourceId, shadedRouteSourceId, sunnyRouteSourceId].forEach(sourceId => {
+      if (map.current.getSource(sourceId)) {
+        map.current.removeSource(sourceId);
+      }
+    });
 
     // Add new route
     if (route) {
@@ -242,7 +253,6 @@ function App() {
           }
         }
       });
-
       map.current.addLayer({
         id: routeLayerId,
         type: 'line',
@@ -257,6 +267,7 @@ function App() {
           'line-opacity': 0.75
         }
       }, '3d-buildings');
+      updateRouteShade(route, shadowLayer.current, map.current);
     }
   }, [route]);
 
