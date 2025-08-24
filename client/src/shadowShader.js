@@ -1,3 +1,6 @@
+// Credit goes to Ted Piotrowski
+// https://gist.github.com/ted-piotrowski/420a31bf3c157664fdda14bf45692785
+
 import SunCalc from 'suncalc';
 
 export class BuildingShadows {
