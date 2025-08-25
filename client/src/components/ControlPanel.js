@@ -1,19 +1,12 @@
 import React from 'react';
 
 const ControlPanel = ({
-  selectedDateTime,
-  setSelectedDateTime,
   solarPosition,
-  isSelectingStart,
-  setIsSelectingStart,
-  isSelectingEnd,
-  setIsSelectingEnd,
   startPoint,
   endPoint,
   routeData,
   isProcessingRoute,
   clearRoute,
-  shadyPathSections,
   routeStats
 }) => {
   return (
@@ -39,23 +32,6 @@ const ControlPanel = ({
       }}>
         <h3 style={{ margin: '0 0 10px 0' }}>Shade walking directions</h3>
         <div>
-          <div style={{ marginBottom: '8px' }}>
-            <input
-              type="datetime-local"
-              value={selectedDateTime}
-              onChange={(e) => setSelectedDateTime(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '4px',
-                border: '1px solid #555',
-                borderRadius: '4px',
-                backgroundColor: '#333',
-                color: 'white',
-                fontSize: '12px'
-              }}
-            />
-          </div>
-          
           {solarPosition && (
             <div style={{ fontSize: '11px', color: '#aaa' }}>
               <div>Sun elevation: {(solarPosition.elevation * 180 / Math.PI).toFixed(1)}°</div>

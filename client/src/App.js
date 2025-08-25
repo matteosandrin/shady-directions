@@ -5,6 +5,7 @@ import { BuildingShadows, calculateShadeMap } from './shadowShader';
 import { updateRouteShade } from './route';
 import ErrorScreen from './components/ErrorScreen';
 import ControlPanel from './components/ControlPanel';
+import TimeSlider from './components/TimeSlider';
 
 // Import Mapbox CSS
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -314,8 +315,6 @@ function App() {
       <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
 
       <ControlPanel
-        selectedDateTime={selectedDateTime}
-        setSelectedDateTime={setSelectedDateTime}
         solarPosition={solarPosition}
         startPoint={startPoint}
         endPoint={endPoint}
@@ -323,6 +322,11 @@ function App() {
         isProcessingRoute={isLoadingRoute}
         clearRoute={clearRoute}
         routeStats={routeStats}
+      />
+
+      <TimeSlider
+        selectedDateTime={selectedDateTime}
+        setSelectedDateTime={setSelectedDateTime}
       />
     </div>
   );
