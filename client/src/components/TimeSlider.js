@@ -1,6 +1,15 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 
 const TimeSlider = ({ selectedDateTime, setSelectedDateTime }) => {
+  // Track screen size for responsive layout
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  
   // Parse selectedDateTime to get timeOfDay in minutes since midnight
   const timeOfDay = useMemo(() => {
     const date = new Date(selectedDateTime);
@@ -53,10 +62,38 @@ const TimeSlider = ({ selectedDateTime, setSelectedDateTime }) => {
     }}>
       <div style={{
         display: 'flex',
-        alignItems: 'center',
-        gap: '20px',
+        flexDirection: isMobile ? 'column' : 'row',
+        alignItems: isMobile ? 'stretch' : 'center',
+        gap: isMobile ? '10px' : '20px',
         maxWidth: '100%'
       }}>
+        {/* DateTime picker - shows first on mobile (above slider) */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: isMobile ? 'center' : 'flex-start',
+          gap: '15px',
+          minWidth: isMobile ? 'auto' : '200px',
+          order: isMobile ? 1 : 2
+        }}>
+          <input
+            type="datetime-local"
+            value={selectedDateTime}
+            onChange={(e) => setSelectedDateTime(e.target.value)}
+            style={{
+              padding: '6px 8px',
+              border: '1px solid #ddd',
+              borderRadius: '4px',
+              backgroundColor: 'white',
+              color: '#333',
+              fontSize: '12px',
+              minWidth: isMobile ? 'auto' : '180px',
+              width: isMobile ? 'auto' : '180px'
+            }}
+          />
+        </div>
+        
+        {/* Time slider - shows second on mobile (below datetime picker) */}
         <input
           type="range"
           min="0"
@@ -82,31 +119,11 @@ const TimeSlider = ({ selectedDateTime, setSelectedDateTime }) => {
             outline: 'none',
             cursor: 'pointer',
             WebkitAppearance: 'none',
-            MozAppearance: 'none'
+            MozAppearance: 'none',
+            order: isMobile ? 2 : 1,
+            width: isMobile ? '100%' : 'auto'
           }}
         />
-        
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '15px',
-          minWidth: '200px'
-        }}>
-          <input
-            type="datetime-local"
-            value={selectedDateTime}
-            onChange={(e) => setSelectedDateTime(e.target.value)}
-            style={{
-              padding: '6px 8px',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-              backgroundColor: 'white',
-              color: '#333',
-              fontSize: '12px',
-              minWidth: '180px'
-            }}
-          />
-        </div>
       </div>
       
       <style jsx="true">{`
