@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { calculateSolarPosition, formatDateTime, parseDateTime } from './shadowUtils';
-import { BuildingShadows } from './shadowShader';
+import { BuildingShadows, calculateShadeMap } from './shadowShader';
 import { updateRouteShade } from './route';
 import ErrorScreen from './components/ErrorScreen';
 import ControlPanel from './components/ControlPanel';
@@ -67,6 +67,28 @@ function App() {
     }
   }, []);
 
+  const generateShadeMap = useCallback(async (start, end) => {
+    if (!start || !end) return;
+
+    try {
+      // Calculate bounding box that includes both start and end points with some padding
+      const padding = 0.005; // roughly 500 meters
+      const bounds = {
+        west: Math.min(start.lng, end.lng) - padding,
+        east: Math.max(start.lng, end.lng) + padding,
+        north: Math.max(start.lat, end.lat) + padding,
+        south: Math.min(start.lat, end.lat) - padding
+      };
+
+      const date = parseDateTime(selectedDateTime);
+      const shadeMapResult = await calculateShadeMap(bounds, date);
+
+      console.log('Shade map generated:', shadeMapResult);
+    } catch (error) {
+      console.error('Error generating shade map:', error);
+    }
+  }, [selectedDateTime]);
+
   const handleMapClick = useCallback((e) => {
     const { lng, lat } = e.lngLat;
     if (!startPoint) {
@@ -77,13 +99,14 @@ function App() {
       const end = { lng, lat };
       setEndPoint(end);
       fetchRoute(startPoint, end);
+      generateShadeMap(startPoint, end);
     } else {
       console.log('Resetting points');
       setStartPoint({ lng, lat });
       setEndPoint(null);
       setRoute(null);
     }
-  }, [startPoint, endPoint, fetchRoute]);
+  }, [startPoint, endPoint, fetchRoute, generateShadeMap]);
 
   const clearRoute = useCallback(() => {
     setStartPoint(null);

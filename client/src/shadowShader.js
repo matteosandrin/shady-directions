@@ -2,6 +2,7 @@
 // https://gist.github.com/ted-piotrowski/420a31bf3c157664fdda14bf45692785
 
 import SunCalc from 'suncalc';
+import mapboxgl from 'mapbox-gl';
 
 export class BuildingShadows {
   constructor() {
@@ -202,4 +203,162 @@ export class BuildingShadows {
     gl.vertexAttribPointer(this.aPos, 2, gl.FLOAT, false, 0, 0);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
+}
+
+// Function to calculate shade map for arbitrary bounding box
+export function calculateShadeMap(bounds, date = new Date()) {
+  return new Promise((resolve, reject) => {
+    try {
+      // Calculate center and zoom level for the bounding box at zoom 15
+      const centerLng = (bounds.west + bounds.east) / 2;
+      const centerLat = (bounds.north + bounds.south) / 2;
+      const zoom = 15;
+      
+      // Calculate map dimensions to fit bounding box exactly at zoom 15
+      // Account for device pixel ratio to ensure proper resolution
+      const devicePixelRatio = window.devicePixelRatio || 1;
+      const metersPerPixel = 40075017 * Math.cos(centerLat * Math.PI / 180) / Math.pow(2, zoom + 8);
+      const boundWidthMeters = haversineDistance(
+        { lat: centerLat, lng: bounds.west },
+        { lat: centerLat, lng: bounds.east }
+      );
+      const boundHeightMeters = haversineDistance(
+        { lat: bounds.north, lng: centerLng },
+        { lat: bounds.south, lng: centerLng }
+      );
+      
+      // Calculate CSS pixel dimensions
+      const cssWidth = Math.ceil(boundWidthMeters / metersPerPixel);
+      const cssHeight = Math.ceil(boundHeightMeters / metersPerPixel);
+      
+      // Scale to device pixels for high-resolution rendering
+      const mapWidth = Math.floor(cssWidth * devicePixelRatio);
+      const mapHeight = Math.floor(cssHeight * devicePixelRatio);
+      
+      // Create outer container that can expand beyond body constraints
+      const container = document.createElement('div');
+      container.style.cssText = `
+        position: fixed;
+        top: -9999px;
+        left: -9999px;
+        width: ${mapWidth}px;
+        height: ${mapHeight}px;
+        overflow: visible;
+        z-index: -1000;
+        pointer-events: none;
+      `;
+      document.body.appendChild(container);
+
+      // Create off-screen canvas for headless rendering
+      const canvas = document.createElement('canvas');
+      canvas.width = mapWidth;
+      canvas.height = mapHeight;
+      // Set CSS size to logical pixels for proper scaling
+      canvas.style.width = mapWidth + 'px';
+      canvas.style.height = mapHeight + 'px';
+      canvas.style.position = 'relative';
+      canvas.style.display = 'block';
+      container.appendChild(canvas);
+      
+      // Create headless Mapbox map with white background
+      const map = new mapboxgl.Map({
+        container: canvas,
+        style: {
+          version: 8,
+          sources: {
+            'composite': {
+              type: 'vector',
+              url: 'mapbox://mapbox.mapbox-streets-v8'
+            }
+          },
+          layers: [
+            {
+              'id': 'background',
+              'type': 'background',
+              'paint': {
+                'background-color': '#ffffff'
+              }
+            }
+          ]
+        },
+        center: [centerLng, centerLat],
+        zoom: zoom,
+        pitch: 0,
+        bearing: 0,
+        preserveDrawingBuffer: true,
+        interactive: false,
+        attributionControl: false
+      });
+      
+      map.on('load', () => {
+        // Add invisible 3D buildings layer (for shadow calculation only)
+        map.addLayer({
+          'id': '3d-buildings',
+          'source': 'composite',
+          'source-layer': 'building',
+          'type': 'fill-extrusion',
+          'filter': [
+            'all',
+            ['>', ['get', 'height'], 0],
+            ['!=', ['get', 'underground'], 'true']
+          ],
+          'paint': {
+            'fill-extrusion-color': 'transparent',
+            'fill-extrusion-height': ["number", ["get", "height"], 5],
+            'fill-extrusion-base': ["number", ["get", "min_height"], 0],
+            'fill-extrusion-opacity': 0
+          }
+        });
+        
+        // Wait for tiles to load
+        setTimeout(() => {
+          // Create and add shadow layer
+          const shadowLayer = new BuildingShadows();
+          shadowLayer.updateDate(date);
+          map.addLayer(shadowLayer);
+          
+          // Wait for shadows to render
+          setTimeout(() => {
+            // Capture the rendered image directly from the canvas
+            const imageData = map.getCanvas().toDataURL('image/png');
+            
+            // Clean up
+            map.remove();
+            document.body.removeChild(container);
+            
+            resolve({
+              imageData,
+              bounds,
+              center: [centerLng, centerLat],
+              zoom,
+              size: { width: mapWidth, height: mapHeight },
+              date
+            });
+          }, 1000);
+        }, 1000);
+      });
+      
+      map.on('error', (error) => {
+        // Clean up on error
+        if (map) map.remove();
+        if (container && container.parentNode) document.body.removeChild(container);
+        reject(error);
+      });
+      
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+// Helper function to calculate distance between two points using Haversine formula
+function haversineDistance(point1, point2) {
+  const R = 6371000; // Earth's radius in meters
+  const dLat = (point2.lat - point1.lat) * Math.PI / 180;
+  const dLng = (point2.lng - point1.lng) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(point1.lat * Math.PI / 180) * Math.cos(point2.lat * Math.PI / 180) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
 }
