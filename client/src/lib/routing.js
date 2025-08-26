@@ -1,4 +1,5 @@
 import { Heap } from 'heap-js';
+import { distance } from '@turf/distance';
 
 export async function getWaysData() {
   const response = await fetch('/data/manhattan_ways.json');
@@ -6,17 +7,6 @@ export async function getWaysData() {
     throw new Error('Failed to fetch manhattan ways data');
   }
   return await response.json();
-}
-
-function haversine(lat1, lon1, lat2, lon2) {
-  const R = 6371000; // meters
-  const toRad = d => d * Math.PI / 180;
-  const dlat = toRad(lat2 - lat1);
-  const dlon = toRad(lon2 - lon1);
-  const a = Math.sin(dlat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-    Math.sin(dlon / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(a));
 }
 
 export async function findWalkingRoute(start, end) {
@@ -142,7 +132,7 @@ export function buildGraph(manhattanWaysData) {
       }
 
       // Calculate edge length
-      const length = haversine(nodeA.lat, nodeA.lon, nodeB.lat, nodeB.lon);
+      const length = distance([nodeA.lon, nodeA.lat], [nodeB.lon, nodeB.lat], { units: 'meters' });
 
       if (length === 0) {
         console.warn(`Zero-length edge in way ${el.id} between nodes ${nodeAId} and ${nodeBId}`);
@@ -269,8 +259,8 @@ function astar(graph, startIdx, goalIdx, opts = {}) {
 
   function heuristic(i) {
     const [lat, lon] = graph.coords[i];
-    const distance = haversine(lat, lon, goalLat, goalLon);
-    return distance / walkSpeed; // optimistic time estimate
+    const dist = distance([lon, lat], [goalLon, goalLat], { units: 'meters' });
+    return dist / walkSpeed; // optimistic time estimate
   }
 
   // Priority queue using heap-js
@@ -360,10 +350,10 @@ function nearestNode(graph, lat, lon) {
   for (let i = 0; i < graph.coords.length; i++) {
     if (!graph.coords[i]) continue;
     const [nodeLat, nodeLon] = graph.coords[i];
-    const distance = haversine(lat, lon, nodeLat, nodeLon);
+    const dist = distance([lon, lat], [nodeLon, nodeLat], { units: 'meters' });
 
-    if (distance < bestDistance) {
-      bestDistance = distance;
+    if (dist < bestDistance) {
+      bestDistance = dist;
       bestIdx = i;
     }
   }

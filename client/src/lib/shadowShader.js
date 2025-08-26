@@ -3,6 +3,7 @@
 
 import SunCalc from 'suncalc';
 import mapboxgl from 'mapbox-gl';
+import { distance } from '@turf/distance';
 
 export class BuildingShadows {
   constructor() {
@@ -218,13 +219,15 @@ export function calculateShadeMap(bounds, date = new Date()) {
       // Account for device pixel ratio to ensure proper resolution
       const devicePixelRatio = window.devicePixelRatio || 1;
       const metersPerPixel = 40075017 * Math.cos(centerLat * Math.PI / 180) / Math.pow(2, zoom + 8);
-      const boundWidthMeters = haversineDistance(
-        { lat: centerLat, lng: bounds.west },
-        { lat: centerLat, lng: bounds.east }
+      const boundWidthMeters = distance(
+        [bounds.west, centerLat],
+        [bounds.east, centerLat],
+        { units: 'meters' }
       );
-      const boundHeightMeters = haversineDistance(
-        { lat: bounds.north, lng: centerLng },
-        { lat: bounds.south, lng: centerLng }
+      const boundHeightMeters = distance(
+        [centerLng, bounds.north],
+        [centerLng, bounds.south],
+        { units: 'meters' }
       );
       
       // Calculate CSS pixel dimensions
@@ -351,14 +354,3 @@ export function calculateShadeMap(bounds, date = new Date()) {
   });
 }
 
-// Helper function to calculate distance between two points using Haversine formula
-function haversineDistance(point1, point2) {
-  const R = 6371000; // Earth's radius in meters
-  const dLat = (point2.lat - point1.lat) * Math.PI / 180;
-  const dLng = (point2.lng - point1.lng) * Math.PI / 180;
-  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(point1.lat * Math.PI / 180) * Math.cos(point2.lat * Math.PI / 180) *
-    Math.sin(dLng / 2) * Math.sin(dLng / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
