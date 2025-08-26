@@ -1,11 +1,12 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import mapboxgl from 'mapbox-gl';
-import { calculateSolarPosition, formatDateTime, parseDateTime } from './shadowUtils';
 import { BuildingShadows, calculateShadeMap } from './shadowShader';
+import { formatDateTime, parseDateTime } from './timeFormat';
 import { updateRouteShade } from './route';
-import ErrorScreen from './components/ErrorScreen';
+import { useState, useEffect, useMemo, useRef, useCallback, use } from 'react';
 import ControlPanel from './components/ControlPanel';
+import ErrorScreen from './components/ErrorScreen';
 import TimeSlider from './components/TimeSlider';
+import SunCalc from 'suncalc';
+import mapboxgl from 'mapbox-gl';
 
 // Import Mapbox CSS
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -21,6 +22,7 @@ function App() {
 
   const [error] = useState(null);
   const [selectedDateTime, setSelectedDateTime] = useState(formatDateTime(new Date()));
+  const [mapCenter, setMapCenter] = useState(manhattanCenter);
   const [startPoint, setStartPoint] = useState(null);
   const [endPoint, setEndPoint] = useState(null);
   const [route, setRoute] = useState(null);
@@ -29,8 +31,12 @@ function App() {
 
   const solarPosition = useMemo(() => {
     const date = parseDateTime(selectedDateTime);
-    return calculateSolarPosition(date, manhattanCenter.lat, manhattanCenter.lng);
-  }, [selectedDateTime]);
+    const sunPosition = SunCalc.getPosition(date, mapCenter.lat, mapCenter.lng);
+    return {
+      elevation: sunPosition.altitude,
+      azimuth: sunPosition.azimuth
+    }
+  }, [selectedDateTime, mapCenter]);
 
   const fetchRoute = useCallback(async (start, end) => {
     if (!start || !end) return;
@@ -156,6 +162,9 @@ function App() {
         // Add GPU-accelerated shadow layer
         shadowLayer.current = new BuildingShadows();
         map.current.addLayer(shadowLayer.current, '3d-buildings');
+        map.current.on('move', () => {
+          setMapCenter(map.current.getCenter());
+        });
       });
     }
   }, [error]);
