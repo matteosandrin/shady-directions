@@ -1,6 +1,6 @@
-import { BuildingShadows, calculateShadeMap } from './shadowShader';
-import { formatDateTime, parseDateTime } from './timeFormat';
-import { updateRouteShade } from './route';
+import { BuildingShadows, calculateShadeMap } from './lib/shadowShader';
+import { formatDateTime, parseDateTime } from './lib/timeFormat';
+import { updateRouteShade } from './lib/route';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import ControlPanel from './components/ControlPanel';
 import ErrorScreen from './components/ErrorScreen';
