@@ -114,7 +114,7 @@ export class BuildingShadows {
     this.uAlt = gl.getUniformLocation(this.opacityProgram, "u_alt");
     this.uMatrix2 = gl.getUniformLocation(this.opacityProgram, "u_matrix");
     this.shadeColor = gl.getUniformLocation(this.opacityProgram, "u_shadeColor");
-    const [x, y, vWidth, vHeight] = gl.getParameter(gl.VIEWPORT);
+    const [, , vWidth, vHeight] = gl.getParameter(gl.VIEWPORT);
 
     this.buf = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, this.buf);

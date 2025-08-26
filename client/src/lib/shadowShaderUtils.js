@@ -154,7 +154,6 @@ export function debugShadowDetectionArea(clickLng, clickLat, shadowLayer, map) {
 
   // Create array to store debug points
   const debugPoints = [];
-  let totalPoints = 0;
 
   // Test 100x100 area around click point
   const gridSize = 100;
@@ -170,8 +169,6 @@ export function debugShadowDetectionArea(clickLng, clickLat, shadowLayer, map) {
       try {
         // Test shadow detection at this point
         const shadowResult = isPointInShadow(testCoords.lng, testCoords.lat, shadowLayer, map);
-        
-        totalPoints++;
         debugPoints.push({
           type: 'Feature',
           properties: {
