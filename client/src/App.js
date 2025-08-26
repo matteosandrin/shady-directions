@@ -1,7 +1,7 @@
 import { BuildingShadows, calculateShadeMap } from './shadowShader';
 import { formatDateTime, parseDateTime } from './timeFormat';
 import { updateRouteShade } from './route';
-import { useState, useEffect, useMemo, useRef, useCallback, use } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import ControlPanel from './components/ControlPanel';
 import ErrorScreen from './components/ErrorScreen';
 import TimeSlider from './components/TimeSlider';
@@ -234,7 +234,7 @@ function App() {
         cursor: pointer;
       `;
       
-      const startMarker = new mapboxgl.Marker(startEl)
+      new mapboxgl.Marker(startEl)
         .setLngLat([startPoint.lng, startPoint.lat])
         .addTo(map.current);
     }
@@ -253,7 +253,7 @@ function App() {
         cursor: pointer;
       `;
       
-      const endMarker = new mapboxgl.Marker(endEl)
+      new mapboxgl.Marker(endEl)
         .setLngLat([endPoint.lng, endPoint.lat])
         .addTo(map.current);
     }
