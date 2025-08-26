@@ -265,3 +265,39 @@ export function getShadowLayerDebugInfo(shadowLayer, map) {
     }
   };
 }
+
+/**
+ * Shade map sampler class for efficient shadow sampling
+ * Can work with either image data or a map object with shadow layer
+ */
+export class ShadeMapSampler {
+  constructor(shadowData) {
+    this.bounds = shadowData.bounds;
+    this.size = shadowData.size;
+    this.map = shadowData.map;
+    this.shadowLayer = shadowData.shadowLayer;
+    this.loaded = false;
+  }
+
+  /**
+   * Sample shade value at a specific geographic location
+   * @param {number} lat - Latitude to sample
+   * @param {number} lon - Longitude to sample
+   * @returns {boolean} True if the location is in shade, false if sunny
+   */
+  sampleAt(lat, lon) {
+    const result = isPointInShadow(lon, lat, this.shadowLayer, this.map);
+    return result.isShaded;
+  }
+
+  /**
+   * Clean up resources
+   */
+  dispose() {
+    this.map.remove();
+    this.canvas = null;
+    this.ctx = null;
+    this.pixelData = null;
+    this.loaded = false;
+  }
+}

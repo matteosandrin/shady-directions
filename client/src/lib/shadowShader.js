@@ -251,21 +251,10 @@ export function calculateShadeMap(bounds, date = new Date()) {
         pointer-events: none;
       `;
       document.body.appendChild(container);
-
-      // Create off-screen canvas for headless rendering
-      const canvas = document.createElement('canvas');
-      canvas.width = mapWidth;
-      canvas.height = mapHeight;
-      // Set CSS size to logical pixels for proper scaling
-      canvas.style.width = mapWidth + 'px';
-      canvas.style.height = mapHeight + 'px';
-      canvas.style.position = 'relative';
-      canvas.style.display = 'block';
-      container.appendChild(canvas);
       
       // Create headless Mapbox map with white background
       const map = new mapboxgl.Map({
-        container: canvas,
+        container: container,
         style: {
           version: 8,
           sources: {
@@ -322,23 +311,18 @@ export function calculateShadeMap(bounds, date = new Date()) {
           
           // Wait for shadows to render
           setTimeout(() => {
-            // Capture the rendered image directly from the canvas
-            const imageData = map.getCanvas().toDataURL('image/png');
-            
-            // Clean up
-            map.remove();
-            document.body.removeChild(container);
-            
-            resolve({
-              imageData,
+            const result = {
+              map,
+              shadowLayer,
               bounds,
               center: [centerLng, centerLat],
               zoom,
               size: { width: mapWidth, height: mapHeight },
               date
-            });
+            };
+            resolve(result);
           }, 1000);
-        }, 1000);
+        }, 2000);
       });
       
       map.on('error', (error) => {

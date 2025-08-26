@@ -44,7 +44,10 @@ function App() {
     setIsLoadingRoute(true);
     try {
       const date = parseDateTime(selectedDateTime);
-      const routeData = await findWalkingRoute(start, end, date);
+      const options = {
+        shadePreference: 0.5, // 0 = no preference, 1 = strong shade preference
+      }
+      const routeData = await findWalkingRoute(start, end, date, options);
       setRoute(routeData);
     } catch (error) {
       console.error('Error fetching route:', error);

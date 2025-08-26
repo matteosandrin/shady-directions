@@ -1,6 +1,7 @@
 import { Heap } from 'heap-js';
 import { distance } from '@turf/distance';
 import { calculateShadeMap } from './shadowShader';
+import { ShadeMapSampler } from './shadowShaderUtils';
 
 async function getWaysData() {
   const response = await fetch('/data/manhattan_ways.json');
@@ -29,17 +30,18 @@ async function getShadeData(start, end, date) {
   }
 };
 
-export async function findWalkingRoute(start, end, date) {
+export async function findWalkingRoute(start, end, date, options = {}) {
   const waysData = await getWaysData();
   const shadeData = await getShadeData(start, end, date);
   const graph = buildGraph(waysData, shadeData);
-  return findRoute(graph, {
+  const route = findRoute(graph, {
     latitude: start.lat,
     longitude: start.lng
   }, {
     latitude: end.lat,
     longitude: end.lng
-  });
+  }, options);
+  return route;
 };
 
 export function buildGraph(waysData, shadeData = null) {
@@ -204,14 +206,37 @@ export function buildGraph(waysData, shadeData = null) {
 
   // Phase 5: Initialize shade data
   const shadeByEdgeId = new Map();
+  const shadeMapSampler = new ShadeMapSampler(shadeData);
   if (shadeData) {
-    // To be implemented
-  } else {
-    for (const { eid } of edgesMeta) {
-      shadeByEdgeId.set(eid, 0.0); // Default: fully sunny (0 = no shade, 1 = full shade)
-    }
+    for (const { eid, a, b } of edgesMeta) {
+      const [latA, lonA] = graph.coords[a];
+      const [latB, lonB] = graph.coords[b];
 
+      // Sample multiple points along the edge for better accuracy
+      const samples = 5;
+      let shadeSum = 0;
+      let validSamples = 0;
+
+      for (let i = 0; i <= samples; i++) {
+        const t = i / samples;
+        const lat = latA + t * (latB - latA);
+        const lon = lonA + t * (lonB - lonA);
+        const isShaded = shadeMapSampler.sampleAt(lat, lon);
+        if (isShaded !== null) {
+          shadeSum += isShaded ? 1 : 0;
+          validSamples++;
+        }
+      }
+
+      if (validSamples > 0) {
+        const shadeFraction = shadeSum / validSamples; // 0 = no shade, 1 = full shade
+        shadeByEdgeId.set(eid, shadeFraction);
+      } else {
+        shadeByEdgeId.set(eid, 0.0); // Default to no shade if no valid samples
+      }
+    }
   }
+  shadeMapSampler.dispose();
 
   // Attach metadata to graph
   graph.shadeByEdgeId = shadeByEdgeId;
