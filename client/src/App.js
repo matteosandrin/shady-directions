@@ -8,7 +8,6 @@ import TimeSlider from './components/TimeSlider';
 import SunCalc from 'suncalc';
 import mapboxgl from 'mapbox-gl';
 
-// Import Mapbox CSS
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_ACCESS_TOKEN;
@@ -78,7 +77,6 @@ function App() {
     if (!start || !end) return;
 
     try {
-      // Calculate bounding box that includes both start and end points with some padding
       const padding = 0.005; // roughly 500 meters
       const bounds = {
         west: Math.min(start.lng, end.lng) - padding,
@@ -134,10 +132,7 @@ function App() {
         pitch: 0,
         bearing: 0
       });
-
-      // Add buildings layer when map loads
       map.current.on('load', () => {
-        // Remove default building layer if it exists
         if (map.current.getLayer('building')) {
           map.current.removeLayer('building');
         }
@@ -158,8 +153,6 @@ function App() {
             'fill-extrusion-opacity': 1
           }
         }, 'road-label');
-
-        // Add GPU-accelerated shadow layer
         shadowLayer.current = new BuildingShadows();
         map.current.addLayer(shadowLayer.current, '3d-buildings');
         map.current.on('move', () => {
@@ -270,7 +263,6 @@ function App() {
     const sunnyRouteSourceId = 'sunny-route';
     const sunnyRouteLayerId = 'sunny-route-line';
 
-    // Remove existing route layers
     [routeLayerId, shadedRouteLayerId, sunnyRouteLayerId].forEach(layerId => {
       if (map.current.getLayer(layerId)) {
         map.current.removeLayer(layerId);
@@ -282,7 +274,6 @@ function App() {
       }
     });
 
-    // Add new route
     if (route) {
       console.log('Adding route to map:', route);
       map.current.addSource(routeSourceId, {
