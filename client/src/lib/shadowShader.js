@@ -76,11 +76,11 @@ export class BuildingShadows {
         }
         `;
     const fragmentSource = `
-                precision mediump float;
-                uniform sampler2D u_tex;
-                uniform float u_alt;
-                uniform vec4 u_shadeColor;
-                varying vec2 v_pos;
+        precision mediump float;
+        uniform sampler2D u_tex;
+        uniform float u_alt;
+        uniform vec4 u_shadeColor;
+        varying vec2 v_pos;
         void main() {
             if (u_alt < 0.0) {
                 gl_FragColor = u_shadeColor;
