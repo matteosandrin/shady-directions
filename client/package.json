@@ -6,6 +6,7 @@
     "@turf/distance": "^7.2.0",
     "@turf/turf": "^7.2.0",
     "dotenv": "^17.2.1",
+    "heap-js": "^2.6.0",
     "mapbox-gl": "^2.15.0",
     "polygon-clipping": "^0.15.7",
     "react": "^18.2.0",

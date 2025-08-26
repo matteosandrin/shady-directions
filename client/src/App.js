@@ -1,6 +1,7 @@
 import { BuildingShadows, calculateShadeMap } from './lib/shadowShader';
 import { formatDateTime, parseDateTime } from './lib/timeFormat';
-import { updateRouteShade } from './lib/route';
+import { updateRouteShade } from './lib/routeAnalysis';
+import { findWalkingRoute } from './lib/routing';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import ControlPanel from './components/ControlPanel';
 import ErrorScreen from './components/ErrorScreen';
@@ -42,29 +43,8 @@ function App() {
 
     setIsLoadingRoute(true);
     try {
-      const response = await fetch('/directions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          start: {
-            latitude: start.lat,
-            longitude: start.lng
-          },
-          end: {
-            latitude: end.lat,
-            longitude: end.lng
-          }
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const routeData = await response.json();
-      setRoute(routeData.route);
+      const routeData = await findWalkingRoute(start, end);
+      setRoute(routeData);
     } catch (error) {
       console.error('Error fetching route:', error);
       setRoute(null);
