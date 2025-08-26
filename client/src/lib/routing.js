@@ -308,21 +308,15 @@ function astar(graph, startIdx, goalIdx, opts = {}) {
 
     for (const edge of graph.adj[current]) {
       const neighbor = edge.to;
-
-      // Calculate edge cost with shade preference and path type preference
-      const shade = graph.shadeByEdgeId?.get(edge.eid) ?? 0;
-      const sunExposure = 1 - shade;
-
-      // Higher shade preference means we prefer shaded paths
-      const shadeBonus = shadePreference * shade;
-      const sunPenalty = shadePreference * sunExposure;
+      const shade = graph.shadeByEdgeId?.get(edge.eid) ?? 0; // 0 = no shade, 1 = full shade
 
       // Pedestrian-only path preference (lower cost multiplier = higher preference)
       const isPedestrianOnly = ['footway', 'path', 'pedestrian', 'steps'].includes(edge.highway);
-      const pathTypeMultiplier = isPedestrianOnly ? (1-pedestrianPathPreference) : 1.0;
+      const pathTypeMultiplier = isPedestrianOnly ? (1 - pedestrianPathPreference) : 1.0;
 
       const baseTime = edge.length / walkSpeed;
-      const edgeTime = baseTime * pathTypeMultiplier * (1 + sunPenalty - shadeBonus);
+      const shadeMultiplier = 1 + shadePreference * (1 - shade);
+      const edgeTime = baseTime * pathTypeMultiplier * shadeMultiplier;
 
       const tentativeG = g[current] + edgeTime;
 
