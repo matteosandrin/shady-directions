@@ -4,7 +4,6 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const axios = require('axios');
-const routing = require('./routing');
 
 const app = express();
 const PORT = process.env.PORT || 5555;
@@ -15,12 +14,6 @@ app.use(express.static(path.join(__dirname, 'client/static')));
 app.use('/data', express.static(path.join(__dirname, 'data')));
 
 const calculateWalkingRoute = async (start, end) => {
-  const graph = routing.buildGraph();
-  const route = routing.findRoute(graph, start, end);
-  return route;
-};
-
-const calculateWalkingRouteOnline = async (start, end) => {
   try {
     const response = await axios.get('https://api.openrouteservice.org/v2/directions/foot-walking', {
       params: {
