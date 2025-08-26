@@ -213,7 +213,7 @@ export function buildGraph(waysData, shadeData = null) {
       const [latB, lonB] = graph.coords[b];
 
       // Sample multiple points along the edge for better accuracy
-      const samples = 5;
+      const samples = 20;
       let shadeSum = 0;
       let validSamples = 0;
 
@@ -379,10 +379,13 @@ function astar(graph, startIdx, goalIdx, opts = {}) {
   path.reverse();
   edges.reverse();
 
+  const edgeShadeValues = edges.map(eid => graph.shadeByEdgeId?.get(eid) ?? 0);
+
   return {
     path,
     time_s: g[goalIdx],
     edges,
+    shade: edgeShadeValues,
     distance: totalDistance
   };
 }
@@ -438,6 +441,7 @@ export function findRoute(graph, start, goal, options = {}) {
     distance: result.distance,
     duration: result.time_s,
     path: result.path,
-    edges: result.edges
+    edges: result.edges,
+    shade: result.shade,
   };
 }

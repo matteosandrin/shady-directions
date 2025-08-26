@@ -1,134 +1,3 @@
-import { isPointInShadow } from './shadowShaderUtils';
-
-/**
- * Analyze route coordinates to determine shaded and sunny segments
- * @param {Object} route - Route data with coordinates
- * @param {Object} shadowLayer - Shadow layer instance
- * @param {Object} map - Mapbox map instance
- * @returns {Object} Object containing shadedSegments and sunnySegments arrays
- */
-function analyzeRouteForShade(route, shadowLayer, map) {
-  if (!route || !shadowLayer || !map) return { shadedSegments: [], sunnySegments: [] };
-
-  const coordinates = route.coordinates;
-  const segments = [];
-  const sampleInterval = 10; // Sample every 10 meters along route
-
-  // Sample points along the route
-  for (let i = 0; i < coordinates.length - 1; i++) {
-    const start = coordinates[i];
-    const end = coordinates[i + 1];
-    
-    // Calculate distance between points (rough approximation)
-    const deltaLng = end[0] - start[0];
-    const deltaLat = end[1] - start[1];
-    const distance = Math.sqrt(deltaLng * deltaLng + deltaLat * deltaLat) * 111320; // rough meters
-    
-    const numSamples = Math.max(2, Math.ceil(distance / sampleInterval));
-    
-    for (let j = 0; j < numSamples - 1; j++) {
-      const t1 = j / (numSamples - 1);
-      const t2 = (j + 1) / (numSamples - 1);
-      
-      const point1 = [
-        start[0] + deltaLng * t1,
-        start[1] + deltaLat * t1
-      ];
-      const point2 = [
-        start[0] + deltaLng * t2,
-        start[1] + deltaLat * t2
-      ];
-      
-      // Check if midpoint is in shadow
-      const midLng = (point1[0] + point2[0]) / 2;
-      const midLat = (point1[1] + point2[1]) / 2;
-      
-      const shadowResult = isPointInShadow(midLng, midLat, shadowLayer, map);
-      
-      segments.push({
-        coordinates: [point1, point2],
-        isShaded: shadowResult.isShaded
-      });
-    }
-  }
-
-  // Group consecutive segments of same type
-  const shadedSegments = [];
-  const sunnySegments = [];
-  
-  let currentShadedSegment = null;
-  let currentSunnySegment = null;
-  
-  // Calculate distances and group segments
-  let totalShadedDistance = 0;
-  let totalSunnyDistance = 0;
-
-  segments.forEach(segment => {
-    // Calculate segment distance
-    const [point1, point2] = segment.coordinates;
-    const deltaLng = point2[0] - point1[0];
-    const deltaLat = point2[1] - point1[1];
-    const segmentDistance = Math.sqrt(deltaLng * deltaLng + deltaLat * deltaLat) * 111320; // rough meters
-    
-    if (segment.isShaded) {
-      totalShadedDistance += segmentDistance;
-      // Add to shaded segments
-      if (currentShadedSegment) {
-        currentShadedSegment.coordinates.push(segment.coordinates[1]);
-        currentShadedSegment.distance += segmentDistance;
-      } else {
-        currentShadedSegment = {
-          coordinates: [segment.coordinates[0], segment.coordinates[1]],
-          distance: segmentDistance
-        };
-      }
-      // End sunny segment if exists
-      if (currentSunnySegment) {
-        sunnySegments.push(currentSunnySegment);
-        currentSunnySegment = null;
-      }
-    } else {
-      totalSunnyDistance += segmentDistance;
-      // Add to sunny segments
-      if (currentSunnySegment) {
-        currentSunnySegment.coordinates.push(segment.coordinates[1]);
-        currentSunnySegment.distance += segmentDistance;
-      } else {
-        currentSunnySegment = {
-          coordinates: [segment.coordinates[0], segment.coordinates[1]],
-          distance: segmentDistance
-        };
-      }
-      // End shaded segment if exists
-      if (currentShadedSegment) {
-        shadedSegments.push(currentShadedSegment);
-        currentShadedSegment = null;
-      }
-    }
-  });
-  
-  // Add remaining segments
-  if (currentShadedSegment) shadedSegments.push(currentShadedSegment);
-  if (currentSunnySegment) sunnySegments.push(currentSunnySegment);
-
-  // Calculate percentages based on distance
-  const totalDistance = totalShadedDistance + totalSunnyDistance;
-  const shadedPercentage = totalDistance > 0 ? Math.round((totalShadedDistance / totalDistance) * 100) : 0;
-  const sunnyPercentage = totalDistance > 0 ? Math.round((totalSunnyDistance / totalDistance) * 100) : 0;
-
-  return { 
-    shadedSegments, 
-    sunnySegments, 
-    stats: {
-      shadedPercentage,
-      sunnyPercentage,
-      totalDistance: Math.round(totalDistance),
-      shadedDistance: Math.round(totalShadedDistance),
-      sunnyDistance: Math.round(totalSunnyDistance)
-    }
-  };
-}
-
 /**
  * Draw shaded and sunny route segments on the map
  * @param {Array} shadedSegments - Array of shaded route segments
@@ -235,8 +104,46 @@ function drawRouteSegments(shadedSegments, sunnySegments, map) {
  * @param {Object} map - Mapbox map instance
  */
 export function updateRouteShade(route, shadowLayer, map) {
-  const { shadedSegments, sunnySegments, stats } = analyzeRouteForShade(route, shadowLayer, map);
+  const { shadedSegments, sunnySegments, stats } = computeSegmentsAndStats(route);
   drawRouteSegments(shadedSegments, sunnySegments, map);
   console.log(`Route analysis complete: ${stats.shadedPercentage}% shaded (${stats.shadedDistance}m), ${stats.sunnyPercentage}% sunny (${stats.sunnyDistance}m), total: ${stats.totalDistance}m`);
   return stats;
+}
+
+function computeSegmentsAndStats(route) {
+  const shadedSegments = [];
+  const sunnySegments = [];
+  let totalDistance = 0;
+  let totalShadedDistance = 0;
+  route.coordinates.map((e, i) => {
+    if (i > 0) {
+      const start = route.coordinates[i - 1];
+      const end = route.coordinates[i];
+      const shade = route.shade[i - 1];
+      const deltaLng = end[0] - start[0];
+      const deltaLat = end[1] - start[1];
+      const distance = Math.sqrt(deltaLng * deltaLng + deltaLat * deltaLat) * 111320;
+      if (shade > 0) {
+        shadedSegments.push({ coordinates: [start, end] });
+        totalShadedDistance += distance;
+      } else {
+        sunnySegments.push({ coordinates: [start, end] });
+      }
+      totalDistance += distance;
+    }
+  });
+  const totalSunnyDistance = totalDistance - totalShadedDistance;
+  const shadedPercentage = totalDistance > 0 ? Math.round((totalShadedDistance / totalDistance) * 100) : 0;
+  const sunnyPercentage = totalDistance > 0 ? Math.round((totalSunnyDistance / totalDistance) * 100) : 0;
+  return {
+    shadedSegments,
+    sunnySegments,
+    stats: {
+      shadedPercentage,
+      sunnyPercentage,
+      totalDistance: Math.round(totalDistance),
+      shadedDistance: Math.round(totalShadedDistance),
+      sunnyDistance: Math.round(totalSunnyDistance)
+    }
+  }
 }
