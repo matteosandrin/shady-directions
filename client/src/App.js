@@ -1,4 +1,4 @@
-import { BuildingShadows, calculateShadeMap } from './lib/shadowShader';
+import { BuildingShadows } from './lib/shadowShader';
 import { formatDateTime, parseDateTime } from './lib/timeFormat';
 import { updateRouteShade } from './lib/routeAnalysis';
 import { findWalkingRoute } from './lib/routing';
@@ -52,7 +52,7 @@ function App() {
     } finally {
       setIsLoadingRoute(false);
     }
-  }, []);
+  }, [selectedDateTime]);
 
   const handleMapClick = useCallback((e) => {
     const { lng, lat } = e.lngLat;
