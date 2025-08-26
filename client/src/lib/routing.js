@@ -1,7 +1,8 @@
 import { Heap } from 'heap-js';
 import { distance } from '@turf/distance';
+import { calculateShadeMap } from './shadowShader';
 
-export async function getWaysData() {
+async function getWaysData() {
   const response = await fetch('/data/manhattan_ways.json');
   if (!response.ok) {
     throw new Error('Failed to fetch manhattan ways data');
@@ -9,9 +10,29 @@ export async function getWaysData() {
   return await response.json();
 }
 
-export async function findWalkingRoute(start, end) {
+async function getShadeData(start, end, date) {
+  if (!start || !end) return;
+
+  try {
+    const padding = 0.005; // roughly 500 meters
+    const bounds = {
+      west: Math.min(start.lng, end.lng) - padding,
+      east: Math.max(start.lng, end.lng) + padding,
+      north: Math.max(start.lat, end.lat) + padding,
+      south: Math.min(start.lat, end.lat) - padding
+    };
+    const shadeMapResult = await calculateShadeMap(bounds, date);
+    console.log('Shade map generated:', shadeMapResult);
+    return shadeMapResult;
+  } catch (error) {
+    console.error('Error generating shade map:', error);
+  }
+};
+
+export async function findWalkingRoute(start, end, date) {
   const waysData = await getWaysData();
-  const graph = buildGraph(waysData);
+  const shadeData = await getShadeData(start, end, date);
+  const graph = buildGraph(waysData, shadeData);
   return findRoute(graph, {
     latitude: start.lat,
     longitude: start.lng
@@ -21,10 +42,10 @@ export async function findWalkingRoute(start, end) {
   });
 };
 
-export function buildGraph(manhattanWaysData) {
+export function buildGraph(waysData, shadeData = null) {
   console.log("Building routing graph from Overpass data...");
 
-  const elements = manhattanWaysData.elements;
+  const elements = waysData.elements;
   console.log(`Loaded ${elements.length} elements from Overpass data`);
 
   // Phase 1: Collect all nodes
@@ -181,10 +202,15 @@ export function buildGraph(manhattanWaysData) {
     }
   }
 
-  // Phase 5: Initialize shade data (placeholder)
+  // Phase 5: Initialize shade data
   const shadeByEdgeId = new Map();
-  for (const { eid } of edgesMeta) {
-    shadeByEdgeId.set(eid, 0.0); // Default: fully sunny (0 = no shade, 1 = full shade)
+  if (shadeData) {
+    // To be implemented
+  } else {
+    for (const { eid } of edgesMeta) {
+      shadeByEdgeId.set(eid, 0.0); // Default: fully sunny (0 = no shade, 1 = full shade)
+    }
+
   }
 
   // Attach metadata to graph

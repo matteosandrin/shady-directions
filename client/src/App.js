@@ -43,7 +43,8 @@ function App() {
 
     setIsLoadingRoute(true);
     try {
-      const routeData = await findWalkingRoute(start, end);
+      const date = parseDateTime(selectedDateTime);
+      const routeData = await findWalkingRoute(start, end, date);
       setRoute(routeData);
     } catch (error) {
       console.error('Error fetching route:', error);
@@ -52,27 +53,6 @@ function App() {
       setIsLoadingRoute(false);
     }
   }, []);
-
-  const generateShadeMap = useCallback(async (start, end) => {
-    if (!start || !end) return;
-
-    try {
-      const padding = 0.005; // roughly 500 meters
-      const bounds = {
-        west: Math.min(start.lng, end.lng) - padding,
-        east: Math.max(start.lng, end.lng) + padding,
-        north: Math.max(start.lat, end.lat) + padding,
-        south: Math.min(start.lat, end.lat) - padding
-      };
-
-      const date = parseDateTime(selectedDateTime);
-      const shadeMapResult = await calculateShadeMap(bounds, date);
-
-      console.log('Shade map generated:', shadeMapResult);
-    } catch (error) {
-      console.error('Error generating shade map:', error);
-    }
-  }, [selectedDateTime]);
 
   const handleMapClick = useCallback((e) => {
     const { lng, lat } = e.lngLat;
@@ -84,14 +64,13 @@ function App() {
       const end = { lng, lat };
       setEndPoint(end);
       fetchRoute(startPoint, end);
-      generateShadeMap(startPoint, end);
     } else {
       console.log('Resetting points');
       setStartPoint({ lng, lat });
       setEndPoint(null);
       setRoute(null);
     }
-  }, [startPoint, endPoint, fetchRoute, generateShadeMap]);
+  }, [startPoint, endPoint, fetchRoute]);
 
   const clearRoute = useCallback(() => {
     setStartPoint(null);
