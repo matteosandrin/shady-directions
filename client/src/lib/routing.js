@@ -15,6 +15,7 @@ async function getShadeData(start, end, date) {
   if (!start || !end) return;
 
   try {
+    const startTime = performance.now();
     const padding = 0.005; // roughly 500 meters
     const bounds = {
       west: Math.min(start.lng, end.lng) - padding,
@@ -24,6 +25,8 @@ async function getShadeData(start, end, date) {
     };
     const shadeMapResult = await calculateShadeMap(bounds, date);
     console.log('Shade map generated:', shadeMapResult);
+    const endTime = performance.now() - startTime;
+    console.log(`Shade map computation time: ${endTime.toFixed(1)} ms`);
     return shadeMapResult;
   } catch (error) {
     console.error('Error generating shade map:', error);
@@ -33,7 +36,7 @@ async function getShadeData(start, end, date) {
 export async function findWalkingRoute(start, end, date, options = {}) {
   const waysData = await getWaysData();
   const shadeData = await getShadeData(start, end, date);
-  const graph = buildGraph(waysData, shadeData);
+  const graph = await buildGraph(waysData, shadeData);
   const route = findRoute(graph, {
     latitude: start.lat,
     longitude: start.lng
@@ -44,13 +47,9 @@ export async function findWalkingRoute(start, end, date, options = {}) {
   return route;
 };
 
-export function buildGraph(waysData, shadeData = null) {
-  console.log("Building routing graph from Overpass data...");
-
+export async function buildGraph(waysData, shadeData = null) {
+  const startTime = performance.now();
   const elements = waysData.elements;
-  console.log(`Loaded ${elements.length} elements from Overpass data`);
-
-  // Phase 1: Collect all nodes
   const nodes = new Map(); // osmNodeId -> {lat, lon, idx}
   let idxCounter = 0;
 
@@ -64,8 +63,6 @@ export function buildGraph(waysData, shadeData = null) {
       });
     }
   }
-
-  console.log(`Found ${nodes.size} nodes`);
 
   // Phase 2: Define walkable way filter
   const isWalkable = (way) => {
@@ -105,8 +102,6 @@ export function buildGraph(waysData, shadeData = null) {
     graph.coords[nodeData.idx] = [nodeData.lat, nodeData.lon];
     graph.nodeOsmIds[nodeData.idx] = osmId;
   }
-
-  console.log(`Graph initialized with ${graph.coords.length} coordinate slots and ${graph.adj.length} adjacency lists`);
 
   // Phase 4: Build edges from walkable ways
   let edgeSeq = 0;
@@ -213,7 +208,7 @@ export function buildGraph(waysData, shadeData = null) {
       const [latB, lonB] = graph.coords[b];
 
       // Sample multiple points along the edge for better accuracy
-      const samples = 20;
+      const samples = 5;
       let shadeSum = 0;
       let validSamples = 0;
 
@@ -238,58 +233,14 @@ export function buildGraph(waysData, shadeData = null) {
   }
   shadeMapSampler.dispose();
 
-  // Attach metadata to graph
   graph.shadeByEdgeId = shadeByEdgeId;
   graph.edgesMeta = edgesMeta;
 
-  console.log(`Graph building complete:`);
-  console.log(`  - Nodes: ${nodes.size}`);
-  console.log(`  - Ways processed: ${waysProcessed}`);
-  console.log(`  - Edges created: ${edgesCreated}`);
-  console.log(`  - Unique edge segments: ${edgesMeta.length}`);
-
-  // Phase 6: Validate graph connectivity (optional)
-  const connectedComponents = findConnectedComponents(graph);
-  console.log(`  - Connected components: ${connectedComponents.length}`);
-  if (connectedComponents.length > 1) {
-    const sizes = connectedComponents.map(comp => comp.length).sort((a, b) => b - a);
-    console.log(`  - Largest component: ${sizes[0]} nodes`);
-  }
+  const endTime = performance.now() - startTime;
+  console.log(`Graph built: ${nodes.size} nodes, ${edgesCreated} edges from ${waysProcessed} ways`);
+  console.log(`Graph construction time: ${endTime.toFixed(1)} ms`);
 
   return graph;
-}
-
-// Helper function to find connected components for graph validation
-function findConnectedComponents(graph) {
-  const visited = new Array(graph.coords.length).fill(false);
-  const components = [];
-
-  for (let i = 0; i < graph.coords.length; i++) {
-    if (!visited[i]) {
-      const component = [];
-      const stack = [i];
-
-      while (stack.length > 0) {
-        const node = stack.pop();
-        if (visited[node]) continue;
-
-        visited[node] = true;
-        component.push(node);
-
-        for (const edge of graph.adj[node]) {
-          if (!visited[edge.to]) {
-            stack.push(edge.to);
-          }
-        }
-      }
-
-      if (component.length > 0) {
-        components.push(component);
-      }
-    }
-  }
-
-  return components;
 }
 
 // A* pathfinding algorithm with shade-aware cost function
@@ -411,6 +362,7 @@ function nearestNode(graph, lat, lon) {
 
 // Main route finding function
 export function findRoute(graph, start, goal, options = {}) {
+  const startTime = performance.now();
   console.log(`Finding route from (${start.latitude}, ${start.longitude}) to (${goal.latitude}, ${goal.longitude})`);
 
   const startIdx = nearestNode(graph, start.latitude, start.longitude);
@@ -420,11 +372,10 @@ export function findRoute(graph, start, goal, options = {}) {
     throw new Error("Could not find nearby nodes for start or goal coordinates");
   }
 
-  console.log(`Routing from node ${startIdx} to node ${goalIdx}`);
-
   const result = astar(graph, startIdx, goalIdx, options);
 
   if (result.path.length === 0) {
+    console.warn("No route found between the specified points");
     throw new Error("No route found between the specified points");
   }
 
@@ -434,8 +385,9 @@ export function findRoute(graph, start, goal, options = {}) {
     return [lon, lat]; // GeoJSON expects [longitude, latitude]
   });
 
+  const endTime = performance.now() - startTime;
   console.log(`Route found: ${result.path.length} nodes, ${result.distance.toFixed(0)}m, ${result.time_s.toFixed(1)}s`);
-
+  console.log(`Route computation time: ${endTime.toFixed(1)} ms`);
   return {
     coordinates,
     distance: result.distance,

@@ -321,8 +321,8 @@ export function calculateShadeMap(bounds, date = new Date()) {
               date
             };
             resolve(result);
-          }, 1000);
-        }, 2000);
+          }, 100);
+        }, 500);
       });
       
       map.on('error', (error) => {
