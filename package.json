@@ -1,34 +1,44 @@
 {
-  "name": "shade-map",
-  "version": "1.0.0",
-  "description": "3D building map application with GeoJSON support",
-  "main": "server.js",
-  "scripts": {
-    "install-all": "npm install && cd client && npm install",
-    "start": "node server.js",
-    "dev": "concurrently \"npm run server\" \"npm run client\"",
-    "server": "nodemon server.js",
-    "client": "cd client && npm start",
-    "build": "cd client && npm run build"
-  },
+  "name": "shade-map-client",
+  "version": "0.1.0",
+  "private": true,
   "dependencies": {
-    "axios": "^1.11.0",
-    "cors": "^2.8.5",
+    "@turf/distance": "^7.2.0",
+    "@turf/turf": "^7.2.0",
     "dotenv": "^17.2.1",
-    "express": "^4.18.2",
-    "heap-js": "^2.6.0"
+    "heap-js": "^2.6.0",
+    "mapbox-gl": "^2.15.0",
+    "polygon-clipping": "^0.15.7",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "suncalc": "^1.9.0"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "dev": "react-scripts start"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2",
-    "nodemon": "^3.0.2"
+    "react-scripts": "5.0.1"
   },
-  "keywords": [
-    "react",
-    "maps",
-    "3d",
-    "geojson",
-    "openstreetmap"
-  ],
-  "author": "Matteo Sandrin",
-  "license": "MIT"
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
 }
