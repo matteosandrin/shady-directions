@@ -1,7 +1,8 @@
-import { Heap } from 'heap-js';
 import { distance } from '@turf/distance';
 import { calculateShadeMap } from './shadowShader';
 import { ShadeMapSampler } from './shadowShaderUtils';
+import path from 'ngraph.path';
+import createGraph from 'ngraph.graph';
 
 async function getWaysData() {
   const ways = require('../data/ways/manhattan.json');
@@ -84,20 +85,24 @@ export async function buildGraph(waysData, shadeData = null) {
     return walkableHighways.includes(tags.highway);
   };
 
-  // Phase 3: Initialize graph structure
-  const graph = {
-    coords: new Array(nodes.size),     // idx -> [lat, lon]
-    adj: Array.from({ length: nodes.size }, () => []), // adjacency list
-    nodeOsmIds: new Array(nodes.size), // idx -> osmId for debugging
-  };
+  // Phase 3: Create ngraph instance and initialize metadata structures
+  const ngraphInstance = createGraph();
+  const coords = new Array(nodes.size);     // idx -> [lat, lon]
+  const nodeOsmIds = new Array(nodes.size); // idx -> osmId for debugging
 
-  // Fill coordinate array and validate indices
+  // Add nodes to ngraph and fill coordinate arrays
   for (const [osmId, nodeData] of nodes) {
-    if (nodeData.idx >= graph.coords.length) {
+    if (nodeData.idx >= coords.length) {
       continue;
     }
-    graph.coords[nodeData.idx] = [nodeData.lat, nodeData.lon];
-    graph.nodeOsmIds[nodeData.idx] = osmId;
+    coords[nodeData.idx] = [nodeData.lat, nodeData.lon];
+    nodeOsmIds[nodeData.idx] = osmId;
+    
+    // Add node to ngraph with coordinate data
+    ngraphInstance.addNode(nodeData.idx, { 
+      coords: [nodeData.lat, nodeData.lon],
+      osmId: osmId
+    });
   }
 
   // Phase 4: Build edges from walkable ways
@@ -137,12 +142,7 @@ export async function buildGraph(waysData, shadeData = null) {
         continue;
       }
 
-      if (nodeA.idx >= graph.adj.length || nodeB.idx >= graph.adj.length || nodeA.idx < 0 || nodeB.idx < 0) {
-        continue;
-      }
-
-      // Check if adjacency arrays exist
-      if (!graph.adj[nodeA.idx] || !graph.adj[nodeB.idx]) {
+      if (nodeA.idx >= coords.length || nodeB.idx >= coords.length || nodeA.idx < 0 || nodeB.idx < 0) {
         continue;
       }
 
@@ -165,31 +165,30 @@ export async function buildGraph(waysData, shadeData = null) {
         name: el.tags?.name
       });
 
-      // Add edges to adjacency list
       // Most streets are bidirectional for pedestrians unless explicitly one-way
       const isOneway = el.tags?.oneway === "yes" ||
         el.tags?.oneway === "true" ||
         el.tags?.oneway === "1";
 
-      // Forward direction
-      graph.adj[nodeA.idx].push({
-        to: nodeB.idx,
-        length,
-        eid,
+      // Add forward direction edge to ngraph
+      ngraphInstance.addLink(nodeA.idx, nodeB.idx, {
+        eid: eid,
+        length: length,
         wayOsmId: el.id,
-        highway: el.tags?.highway
+        highway: el.tags?.highway,
+        name: el.tags?.name
       });
 
       edgesCreated++;
 
-      // Reverse direction (if not one-way)
+      // Add reverse direction (if not one-way)
       if (!isOneway) {
-        graph.adj[nodeB.idx].push({
-          to: nodeA.idx,
-          length,
-          eid,
+        ngraphInstance.addLink(nodeB.idx, nodeA.idx, {
+          eid: eid,
+          length: length,
           wayOsmId: el.id,
-          highway: el.tags?.highway
+          highway: el.tags?.highway,
+          name: el.tags?.name
         });
         edgesCreated++;
       }
@@ -201,8 +200,8 @@ export async function buildGraph(waysData, shadeData = null) {
   const shadeMapSampler = new ShadeMapSampler(shadeData);
   if (shadeData) {
     for (const { eid, a, b } of edgesMeta) {
-      const [latA, lonA] = graph.coords[a];
-      const [latB, lonB] = graph.coords[b];
+      const [latA, lonA] = coords[a];
+      const [latB, lonB] = coords[b];
 
       // Sample multiple points along the edge for better accuracy
       const samples = 5;
@@ -227,11 +226,38 @@ export async function buildGraph(waysData, shadeData = null) {
         shadeByEdgeId.set(eid, 0.0); // Default to no shade if no valid samples
       }
     }
+
+    // Update ngraph links with shade data
+    ngraphInstance.forEachLink(link => {
+      const shade = shadeByEdgeId.get(link.data.eid) ?? 0;
+      link.data.shade = shade;
+    });
   }
   shadeMapSampler.dispose();
 
-  graph.shadeByEdgeId = shadeByEdgeId;
-  graph.edgesMeta = edgesMeta;
+  // Return enhanced graph structure with both ngraph instance and legacy compatibility
+  const graph = {
+    ngraph: ngraphInstance,
+    coords: coords,
+    nodeOsmIds: nodeOsmIds,
+    shadeByEdgeId: shadeByEdgeId,
+    edgesMeta: edgesMeta,
+    // Legacy adjacency list for backward compatibility if needed
+    adj: Array.from({ length: nodes.size }, () => [])
+  };
+
+  // Fill legacy adjacency list for backward compatibility
+  ngraphInstance.forEachLink(link => {
+    if (!graph.adj[link.fromId]) graph.adj[link.fromId] = [];
+    graph.adj[link.fromId].push({
+      to: link.toId,
+      length: link.data.length,
+      eid: link.data.eid,
+      wayOsmId: link.data.wayOsmId,
+      highway: link.data.highway,
+      shade: link.data.shade ?? 0
+    });
+  });
 
   const endTime = performance.now() - startTime;
   console.log(`Graph built: ${nodes.size} nodes, ${edgesCreated} edges from ${waysProcessed} ways`);
@@ -240,7 +266,7 @@ export async function buildGraph(waysData, shadeData = null) {
   return graph;
 }
 
-// A* pathfinding algorithm with shade-aware cost function
+// A* pathfinding algorithm with shade-aware cost function using ngraph.path
 function astar(graph, startIdx, goalIdx, opts = {}) {
   const {
     walkSpeed = 1.4,   // m/s (~5.0 km/h)
@@ -248,93 +274,81 @@ function astar(graph, startIdx, goalIdx, opts = {}) {
     pedestrianPathPreference = 0.2 // 0 = no preference, 1 = strong pedestrian path preference
   } = opts;
 
-  const N = graph.adj.length;
-  const g = new Float64Array(N).fill(Infinity);
-  const f = new Float64Array(N).fill(Infinity);
-  const parent = new Int32Array(N).fill(-1);
-  const parentEdge = new Int32Array(N).fill(-1);
+  // Use the pre-built ngraph instance from buildGraph
+  const ngraphInstance = graph.ngraph;
 
-  const [goalLat, goalLon] = graph.coords[goalIdx];
-
-  function heuristic(i) {
-    const [lat, lon] = graph.coords[i];
+  // Create custom heuristic function
+  const goalCoords = graph.coords[goalIdx];
+  if (!goalCoords) {
+    return { path: [], time_s: Infinity, edges: [], distance: 0 };
+  }
+  const [goalLat, goalLon] = goalCoords;
+  
+  const heuristic = (fromNodeId, toNodeId) => {
+    // fromNodeId is the actual node ID, not a node object
+    const coords = graph.coords[fromNodeId];
+    if (!coords) return 0; // Safety check
+    const [lat, lon] = coords;
     const dist = distance([lon, lat], [goalLon, goalLat], { units: 'meters' });
     return dist / walkSpeed; // optimistic time estimate
-  }
+  };
 
-  // Priority queue using heap-js
-  const heap = new Heap((a, b) => f[a] - f[b]);
+  // Custom distance function that calculates weights based on preferences
+  const customDistance = (fromNode, toNode, link) => {
+    const shade = link.data.shade ?? 0; // 0 = no shade, 1 = full shade
+    
+    // Pedestrian-only path preference (lower cost multiplier = higher preference)
+    const isPedestrianOnly = ['footway', 'path', 'pedestrian', 'steps'].includes(link.data.highway);
+    const pathTypeMultiplier = isPedestrianOnly ? (1 - pedestrianPathPreference) : 1.0;
+    
+    const baseTime = link.data.length / walkSpeed;
+    const shadeMultiplier = 1 + shadePreference * (1 - shade);
+    const edgeTime = baseTime * pathTypeMultiplier * shadeMultiplier;
+    
+    return edgeTime;
+  };
 
-  g[startIdx] = 0;
-  f[startIdx] = heuristic(startIdx);
-  heap.push(startIdx);
+  // Create pathfinder with custom distance and heuristic
+  const pathFinder = path.aStar(ngraphInstance, {
+    distance: customDistance,
+    heuristic: heuristic
+  });
 
-  const closed = new Uint8Array(N);
+  // Find path
+  const foundPath = pathFinder.find(startIdx, goalIdx);
 
-  while (heap.size() > 0) {
-    const current = heap.pop();
-
-    if (current === goalIdx) break;
-    if (closed[current]) continue;
-
-    closed[current] = 1;
-
-    for (const edge of graph.adj[current]) {
-      const neighbor = edge.to;
-      const shade = graph.shadeByEdgeId?.get(edge.eid) ?? 0; // 0 = no shade, 1 = full shade
-
-      // Pedestrian-only path preference (lower cost multiplier = higher preference)
-      const isPedestrianOnly = ['footway', 'path', 'pedestrian', 'steps'].includes(edge.highway);
-      const pathTypeMultiplier = isPedestrianOnly ? (1 - pedestrianPathPreference) : 1.0;
-
-      const baseTime = edge.length / walkSpeed;
-      const shadeMultiplier = 1 + shadePreference * (1 - shade);
-      const edgeTime = baseTime * pathTypeMultiplier * shadeMultiplier;
-
-      const tentativeG = g[current] + edgeTime;
-
-      if (tentativeG < g[neighbor]) {
-        g[neighbor] = tentativeG;
-        parent[neighbor] = current;
-        parentEdge[neighbor] = edge.eid;
-        f[neighbor] = tentativeG + heuristic(neighbor);
-        heap.push(neighbor);
-      }
-    }
-  }
-
-  if (!isFinite(g[goalIdx])) {
+  if (!foundPath || foundPath.length === 0) {
     return { path: [], time_s: Infinity, edges: [], distance: 0 };
   }
 
-  // Reconstruct path
-  const path = [];
+  // Extract path and calculate metrics
+  const pathNodes = foundPath.map(pathNode => pathNode.id);
   const edges = [];
+  const edgeShadeValues = [];
   let totalDistance = 0;
 
-  for (let current = goalIdx; current !== -1; current = parent[current]) {
-    path.push(current);
-    if (parentEdge[current] !== -1) {
-      edges.push(parentEdge[current]);
-      // Find edge length for distance calculation
-      const edgeData = graph.edgesMeta.find(e => e.eid === parentEdge[current]);
-      if (edgeData) {
-        totalDistance += edgeData.length;
-      }
+  for (let i = 0; i < foundPath.length - 1; i++) {
+    const fromNode = foundPath[i].id;
+    const toNode = foundPath[i + 1].id;
+    
+    // Find the link between these nodes
+    const link = ngraphInstance.getLink(fromNode, toNode);
+    if (link) {
+      edges.push(link.data.eid);
+      edgeShadeValues.push(link.data.shade ?? 0);
+      totalDistance += distance(
+        [graph.coords[fromNode][1], graph.coords[fromNode][0]],
+        [graph.coords[toNode][1], graph.coords[toNode][0]],
+        { units: 'meters' });
     }
   }
 
-  path.reverse();
-  edges.reverse();
-
-  const edgeShadeValues = edges.map(eid => graph.shadeByEdgeId?.get(eid) ?? 0);
-
   return {
-    path,
-    time_s: g[goalIdx],
+    path: pathNodes,
     edges,
     shade: edgeShadeValues,
-    distance: totalDistance
+    distance: totalDistance,
+    time_s: totalDistance / walkSpeed,
   };
 }
 
