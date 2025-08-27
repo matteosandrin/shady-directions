@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/shady-directions/static/css/main.004a73ac.css",
+    "main.js": "/shady-directions/static/js/main.11414c1b.js",
+    "index.html": "/shady-directions/index.html",
+    "main.004a73ac.css.map": "/shady-directions/static/css/main.004a73ac.css.map",
+    "main.11414c1b.js.map": "/shady-directions/static/js/main.11414c1b.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.004a73ac.css",
+    "static/js/main.11414c1b.js"
+  ]
+}

@@ -1,0 +1,7 @@
+node_modules/
+client/node_modules/
+client/build/
+CLAUDE.md
+.DS_Store
+.env
+client/.env
