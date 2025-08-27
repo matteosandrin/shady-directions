@@ -131,6 +131,7 @@ function computeSegmentsAndStats(route) {
       }
       totalDistance += distance;
     }
+    return null;
   });
   const totalSunnyDistance = totalDistance - totalShadedDistance;
   const shadedPercentage = totalDistance > 0 ? Math.round((totalShadedDistance / totalDistance) * 100) : 0;
