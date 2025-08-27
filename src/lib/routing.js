@@ -352,13 +352,27 @@ function astar(graph, startIdx, goalIdx, opts = {}) {
   };
 }
 
-// Find nearest node to given coordinates
+// Find nearest node to given coordinates that has connections
 function nearestNode(graph, lat, lon) {
   let bestIdx = -1;
   let bestDistance = Infinity;
 
   for (let i = 0; i < graph.coords.length; i++) {
     if (!graph.coords[i]) continue;
+    
+    // Check if node has connections in the ngraph
+    const node = graph.ngraph.getNode(i);
+    if (!node) continue;
+    
+    // Check if node has any links (connections)
+    let hasConnections = false;
+    graph.ngraph.forEachLinkedNode(i, () => {
+      hasConnections = true;
+      return true; // break early
+    });
+    
+    if (!hasConnections) continue;
+    
     const [nodeLat, nodeLon] = graph.coords[i];
     const dist = distance([lon, lat], [nodeLon, nodeLat], { units: 'meters' });
 
@@ -378,6 +392,10 @@ export function findRoute(graph, start, goal, options = {}) {
 
   const startIdx = nearestNode(graph, start.latitude, start.longitude);
   const goalIdx = nearestNode(graph, goal.latitude, goal.longitude);
+
+  console.log(`Nearest nodes:`);
+  console.log(graph.ngraph.getNode(startIdx))
+  console.log(graph.ngraph.getNode(goalIdx));
 
   if (startIdx === -1 || goalIdx === -1) {
     throw new Error("Could not find nearby nodes for start or goal coordinates");
