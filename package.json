@@ -1,6 +1,7 @@
 {
   "name": "shade-map-client",
   "version": "0.1.0",
+  "homepage" : "https://matteosandrin.github.io/shady-directions/",
   "private": true,
   "dependencies": {
     "@turf/distance": "^7.2.0",
@@ -18,9 +19,11 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "dev": "react-scripts start"
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d build"
   },
   "devDependencies": {
+    "gh-pages": "^6.3.0",
     "react-scripts": "5.0.1"
   },
   "eslintConfig": {
