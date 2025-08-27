@@ -4,11 +4,8 @@ import { calculateShadeMap } from './shadowShader';
 import { ShadeMapSampler } from './shadowShaderUtils';
 
 async function getWaysData() {
-  const response = await fetch('/data/manhattan_ways.json');
-  if (!response.ok) {
-    throw new Error('Failed to fetch manhattan ways data');
-  }
-  return await response.json();
+  const ways = require('../data/ways/manhattan.json');
+  return ways;
 }
 
 async function getShadeData(start, end, date) {
