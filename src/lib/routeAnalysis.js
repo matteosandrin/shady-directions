@@ -1,3 +1,5 @@
+import { distance } from '@turf/turf';
+
 /**
  * Draw shaded and sunny route segments on the map
  * @param {Array} shadedSegments - Array of shaded route segments
@@ -120,16 +122,14 @@ function computeSegmentsAndStats(route) {
       const start = route.coordinates[i - 1];
       const end = route.coordinates[i];
       const shade = route.shade[i - 1];
-      const deltaLng = end[0] - start[0];
-      const deltaLat = end[1] - start[1];
-      const distance = Math.sqrt(deltaLng * deltaLng + deltaLat * deltaLat) * 111320;
+      const dist = distance([start[0], start[1]], [end[0], end[1]], { units: 'meters' });
       if (shade > 0) {
         shadedSegments.push({ coordinates: [start, end] });
-        totalShadedDistance += distance;
+        totalShadedDistance += dist;
       } else {
         sunnySegments.push({ coordinates: [start, end] });
       }
-      totalDistance += distance;
+      totalDistance += dist;
     }
     return null;
   });
