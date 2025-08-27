@@ -2,6 +2,7 @@
 
 A React and Node.js application that provides real-time building shadow visualization and shade-aware walking directions for Manhattan. Combining 3D building visualization with sophisticated solar calculations and routing algorithms.
 
+
 ## Quick Start
 
 ### Prerequisites
