@@ -5,6 +5,7 @@ import { findWalkingRoute } from './lib/routing';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import ControlPanel from './components/ControlPanel';
 import ErrorScreen from './components/ErrorScreen';
+import ErrorModal from './components/ErrorModal';
 import TimeSlider from './components/TimeSlider';
 import SunCalc from 'suncalc';
 import mapboxgl from 'mapbox-gl';
@@ -21,6 +22,7 @@ function App() {
   const shadowLayer = useRef(null);
 
   const [error] = useState(null);
+  const [routeError, setRouteError] = useState(null);
   const [selectedDateTime, setSelectedDateTime] = useState(formatDateTime(new Date()));
   const [mapCenter, setMapCenter] = useState(manhattanCenter);
   const [startPoint, setStartPoint] = useState(null);
@@ -42,6 +44,7 @@ function App() {
     if (!start || !end) return;
 
     setIsLoadingRoute(true);
+    setRouteError(null);
     try {
       const date = parseDateTime(selectedDateTime);
       const options = {
@@ -52,6 +55,7 @@ function App() {
     } catch (error) {
       console.error('Error fetching route:', error);
       setRoute(null);
+      setRouteError(error);
     } finally {
       setIsLoadingRoute(false);
     }
@@ -80,7 +84,13 @@ function App() {
     setEndPoint(null);
     setRoute(null);
     setRouteStats(null);
+    setRouteError(null);
   }, []);
+
+  const closeRouteError = useCallback(() => {
+    setRouteError(null);
+    clearRoute();
+  }, [clearRoute]);
 
   // Initialize map
   useEffect(() => {
@@ -289,6 +299,11 @@ function App() {
       <TimeSlider
         selectedDateTime={selectedDateTime}
         setSelectedDateTime={setSelectedDateTime}
+      />
+
+      <ErrorModal 
+        error={routeError} 
+        onClose={closeRouteError} 
       />
     </div>
   );
