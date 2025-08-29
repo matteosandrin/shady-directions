@@ -118,7 +118,7 @@ export async function buildGraph(waysData, shadeData = null, onProgress) {
     }
   }
 
-  // Phase 2: Define walkable way filter
+  // Define walkable way filter
   const isWalkable = (way) => {
     const tags = way.tags || {};
 
@@ -141,7 +141,7 @@ export async function buildGraph(waysData, shadeData = null, onProgress) {
     return walkableHighways.includes(tags.highway);
   };
 
-  // Phase 3: Create ngraph instance and initialize metadata structures
+  // Create ngraph instance and initialize metadata structures
   const ngraphInstance = createGraph();
   const coords = new Array(nodes.size);     // idx -> [lat, lon]
   const nodeOsmIds = new Array(nodes.size); // idx -> osmId for debugging
@@ -168,7 +168,7 @@ export async function buildGraph(waysData, shadeData = null, onProgress) {
     nodeCount++;
   }
 
-  // Phase 4: Build edges from walkable ways
+  // Build edges from walkable ways
   let edgeSeq = 0;
   const edgesMeta = [];
   let waysProcessed = 0;
@@ -417,37 +417,40 @@ function astar(graph, startIdx, goalIdx, opts = {}) {
   };
 }
 
-// Find nearest node to given coordinates that has connections
+// Find nearest walkable edge and return the closest endpoint
 function nearestNode(graph, lat, lon) {
-  let bestIdx = -1;
+  let bestNodeIdx = -1;
   let bestDistance = Infinity;
 
-  for (let i = 0; i < graph.coords.length; i++) {
-    if (!graph.coords[i]) continue;
+  // Iterate through all edges to find the nearest walkable edge
+  graph.ngraph.forEachLink(link => {
+    const fromNodeIdx = link.fromId;
+    const toNodeIdx = link.toId;
     
-    // Check if node has connections in the ngraph
-    const node = graph.ngraph.getNode(i);
-    if (!node) continue;
-    
-    // Check if node has any links (connections)
-    let hasConnections = false;
-    graph.ngraph.forEachLinkedNode(i, () => {
-      hasConnections = true;
-      return true; // break early
-    });
-    
-    if (!hasConnections) continue;
-    
-    const [nodeLat, nodeLon] = graph.coords[i];
-    const dist = distance([lon, lat], [nodeLon, nodeLat], { units: 'meters' });
-
-    if (dist < bestDistance) {
-      bestDistance = dist;
-      bestIdx = i;
+    if (!graph.coords[fromNodeIdx] || !graph.coords[toNodeIdx]) {
+      return; // Skip if coordinates are missing
     }
-  }
+    
+    // Check distance to both endpoints of this walkable edge
+    const [fromLat, fromLon] = graph.coords[fromNodeIdx];
+    const [toLat, toLon] = graph.coords[toNodeIdx];
+    
+    const distToFrom = distance([lon, lat], [fromLon, fromLat], { units: 'meters' });
+    const distToTo = distance([lon, lat], [toLon, toLat], { units: 'meters' });
+    
+    // Check if either endpoint is closer than our current best
+    if (distToFrom < bestDistance) {
+      bestDistance = distToFrom;
+      bestNodeIdx = fromNodeIdx;
+    }
+    
+    if (distToTo < bestDistance) {
+      bestDistance = distToTo;
+      bestNodeIdx = toNodeIdx;
+    }
+  });
 
-  return bestIdx;
+  return bestNodeIdx;
 }
 
 // Main route finding function
