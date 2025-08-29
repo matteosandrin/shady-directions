@@ -1,5 +1,4 @@
 import { distance } from '@turf/distance';
-import { debugLog } from './debugUtils';
 
 export class ShadowSampler {
   constructor(shadeData) {

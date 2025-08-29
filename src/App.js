@@ -8,6 +8,7 @@ import ControlPanel from './components/ControlPanel';
 import ErrorScreen from './components/ErrorScreen';
 import ErrorModal from './components/ErrorModal';
 import TimeSlider from './components/TimeSlider';
+import DebugIndicator from './components/DebugIndicator';
 import SunCalc from 'suncalc';
 import mapboxgl from 'mapbox-gl';
 
@@ -341,6 +342,8 @@ function App() {
         error={routeError} 
         onClose={closeRouteError} 
       />
+
+      <DebugIndicator />
     </div>
   );
 }

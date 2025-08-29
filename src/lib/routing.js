@@ -1,7 +1,7 @@
 import { distance } from '@turf/distance';
 import { generateShadeMap, SHADE_TYPE } from './shadowShader';
 import { ShadowSampler } from './shadowSampler';
-import { debugLog, debugWarn, debugError } from './debugUtils';
+import { debugLog, debugWarn, debugError, setDebugImage, isDebugMode } from './debugUtils';
 import path from 'ngraph.path';
 import createGraph from 'ngraph.graph';
 
@@ -286,6 +286,12 @@ export async function buildGraph(waysData, shadeData = null, onProgress) {
       const shade = shadeByEdgeId.get(link.data.eid) ?? 0;
       link.data.shade = shade;
     });
+
+    if (isDebugMode()) {
+      // Generate debug image showing sampling points
+      const debugImageUrl = shadowSampler.debugConvertToPng();
+      setDebugImage(debugImageUrl);
+    }
   } else {
     // If no shade data, set all edges to 0 shade
     ngraphInstance.forEachLink(link => {

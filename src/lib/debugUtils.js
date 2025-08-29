@@ -25,3 +25,19 @@ export function debugError(...args) {
     console.error('[DEBUG]', ...args);
   }
 }
+
+// Global debug state for storing debug images
+let debugState = {
+  shadowSamplerImage: null
+};
+
+export function setDebugImage(imageDataUrl) {
+  if (isDebugMode()) {
+    debugState.shadowSamplerImage = imageDataUrl;
+    debugLog('Debug image updated');
+  }
+}
+
+export function getDebugImage() {
+  return debugState.shadowSamplerImage;
+}
