@@ -106,9 +106,12 @@ const ControlPanel = ({
         padding: '15px',
         borderRadius: '8px',
         fontSize: '14px',
-        maxWidth: '300px'
+        maxWidth: '220px'
       }}>
-        <h3 style={{ margin: '0 0 10px 0' }}>Shade walking directions</h3>
+        <h3 style={{ margin: '0 0 10px 0' }}>Shady walking directions</h3>
+        <p>
+          Plan a walking route that maximizes shade, based on the current sun position.
+        </p>
         <div>
           {solarPosition && (
             <div style={{ fontSize: '11px', color: '#aaa' }}>
@@ -120,7 +123,6 @@ const ControlPanel = ({
             </div>
           )}
         </div>
-
         <div style={{ marginTop: '15px', borderTop: '1px solid #555', paddingTop: '15px' }}>
           <h4 style={{ margin: '0 0 10px 0', fontSize: '16px' }}>Route Planning</h4>
           
