@@ -67,7 +67,11 @@ export async function buildGraph(waysData, shadeData = null) {
   const nodes = new Map(); // osmNodeId -> {lat, lon, idx}
   let idxCounter = 0;
 
-  for (const el of elements) {
+  // Helper function to yield to main thread
+  const yieldToMainThread = () => new Promise(resolve => setTimeout(resolve, 0));
+
+  for (let i = 0; i < elements.length; i++) {
+    const el = elements[i];
     if (el.type === "node") {
       nodes.set(el.id, {
         lat: el.lat,
@@ -75,6 +79,10 @@ export async function buildGraph(waysData, shadeData = null) {
         idx: idxCounter++,
         osmId: el.id
       });
+    }
+    // Yield every 100 elements to prevent blocking
+    if (i % 100 === 0) {
+      await yieldToMainThread();
     }
   }
 
@@ -107,6 +115,7 @@ export async function buildGraph(waysData, shadeData = null) {
   const nodeOsmIds = new Array(nodes.size); // idx -> osmId for debugging
 
   // Add nodes to ngraph and fill coordinate arrays
+  let nodeCount = 0;
   for (const [osmId, nodeData] of nodes) {
     if (nodeData.idx >= coords.length) {
       continue;
@@ -119,6 +128,12 @@ export async function buildGraph(waysData, shadeData = null) {
       coords: [nodeData.lat, nodeData.lon],
       osmId: osmId
     });
+    
+    // Yield every 100 nodes to prevent blocking
+    if (nodeCount % 100 === 0) {
+      await yieldToMainThread();
+    }
+    nodeCount++;
   }
 
   // Phase 4: Build edges from walkable ways
@@ -127,7 +142,8 @@ export async function buildGraph(waysData, shadeData = null) {
   let waysProcessed = 0;
   let edgesCreated = 0;
 
-  for (const el of elements) {
+  for (let elementIdx = 0; elementIdx < elements.length; elementIdx++) {
+    const el = elements[elementIdx];
     if (el.type !== "way" || !isWalkable(el)) continue;
 
     waysProcessed++;
@@ -209,13 +225,19 @@ export async function buildGraph(waysData, shadeData = null) {
         edgesCreated++;
       }
     }
+
+    // Yield every 100 ways to prevent blocking
+    if (waysProcessed % 100 === 0) {
+      await yieldToMainThread();
+    }
   }
 
   // Phase 5: Initialize shade data
   const shadeByEdgeId = new Map();
   const shadeMapSampler = new ShadeMapSampler(shadeData);
   if (shadeData) {
-    for (const { eid, a, b } of edgesMeta) {
+    for (let edgeIdx = 0; edgeIdx < edgesMeta.length; edgeIdx++) {
+      const { eid, a, b } = edgesMeta[edgeIdx];
       const [latA, lonA] = coords[a];
       const [latB, lonB] = coords[b];
 
@@ -240,6 +262,11 @@ export async function buildGraph(waysData, shadeData = null) {
         shadeByEdgeId.set(eid, shadeFraction);
       } else {
         shadeByEdgeId.set(eid, 0.0); // Default to no shade if no valid samples
+      }
+
+      // Yield every 100 edges to prevent blocking
+      if (edgeIdx % 100 === 0) {
+        await yieldToMainThread();
       }
     }
 
