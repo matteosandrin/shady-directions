@@ -2,7 +2,7 @@ import { BuildingShadows } from './lib/shadowShader';
 import { formatDateTime, parseDateTime } from './lib/timeFormat';
 import { updateRouteShade } from './lib/routeAnalysis';
 import { findWalkingRoute, ROUTE_PROGRESS_STATUS, getProgressMessage } from './lib/routing';
-import { debugLog, debugError } from './lib/debugUtils';
+import { debugLog, debugError, isDebugMode } from './lib/debugUtils';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import ControlPanel from './components/ControlPanel';
 import ErrorScreen from './components/ErrorScreen';
@@ -42,6 +42,10 @@ function App() {
       azimuth: sunPosition.azimuth
     }
   }, [selectedDateTime, mapCenter]);
+
+  if (!isDebugMode()) {
+    console.log(`Turn on debug mode: ${window.location}?debug=true`);
+  }
 
   const fetchRoute = useCallback(async (start, end) => {
     if (!start || !end) return;
