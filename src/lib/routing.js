@@ -4,23 +4,28 @@ import { ShadeMapSampler } from './shadowShaderUtils';
 import path from 'ngraph.path';
 import createGraph from 'ngraph.graph';
 
-async function getWaysData() {
-  const ways = require('../data/ways/manhattan.json');
-  return ways;
+async function getWaysData(bounds) {
+  const bbox = `${bounds.south},${bounds.west},${bounds.north},${bounds.east}`;
+  const query = `[out:json][timeout:180];(way["highway"]["area"!~"yes"]["access"!~"private"]["highway"!~"abandoned|bus_guideway|construction|cycleway|motor|no|planned|platform|proposed|raceway|razed|rest_area|services"]["foot"!~"no"]["service"!~"private"]["sidewalk"!~"separate"]["sidewalk:both"!~"separate"]["sidewalk:left"!~"separate"]["sidewalk:right"!~"separate"](${bbox});>;);out;`;
+  const overpassUrl = 'https://overpass-api.de/api/interpreter';
+  const response = await fetch(overpassUrl, {
+    method: 'POST',
+    body: query,
+    headers: {
+      'Content-Type': 'text/plain'
+    }
+  });
+  if (!response.ok) {
+    throw new Error(`Overpass API request failed: ${response.status}`);
+  }
+  return await response.json();
 }
 
-async function getShadeData(start, end, date) {
-  if (!start || !end) return;
+async function getShadeData(bounds, date) {
+  if (!bounds) return;
 
   try {
     const startTime = performance.now();
-    const padding = 0.005; // roughly 500 meters
-    const bounds = {
-      west: Math.min(start.lng, end.lng) - padding,
-      east: Math.max(start.lng, end.lng) + padding,
-      north: Math.max(start.lat, end.lat) + padding,
-      south: Math.min(start.lat, end.lat) - padding
-    };
     const shadeMapResult = await calculateShadeMap(bounds, date);
     console.log('Shade map generated:', shadeMapResult);
     const endTime = performance.now() - startTime;
@@ -31,9 +36,20 @@ async function getShadeData(start, end, date) {
   }
 };
 
+function getBboxForPoints(start, end) {
+  const padding = 0.005; // roughly 500 meters
+  return {
+    west: Math.min(start.lng, end.lng) - padding,
+    east: Math.max(start.lng, end.lng) + padding,
+    north: Math.max(start.lat, end.lat) + padding,
+    south: Math.min(start.lat, end.lat) - padding
+  };
+}
+
 export async function findWalkingRoute(start, end, date, options = {}) {
-  const waysData = await getWaysData();
-  const shadeData = await getShadeData(start, end, date);
+  const bounds = getBboxForPoints(start, end);
+  const waysData = await getWaysData(bounds);
+  const shadeData = await getShadeData(bounds, date);
   const graph = await buildGraph(waysData, shadeData);
   const route = findRoute(graph, {
     latitude: start.lat,
