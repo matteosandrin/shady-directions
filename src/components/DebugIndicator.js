@@ -20,10 +20,10 @@ function DebugIndicator() {
         onClick={togglePanel}
         style={{
           position: 'fixed',
-          top: '8px',
-          right: '8px',
-          width: '32px',
-          height: '32px',
+          top: '0px',
+          right: '0px',
+          width: '82px',
+          height: '82px',
           cursor: 'pointer',
           zIndex: 1000,
           userSelect: 'none',
@@ -64,8 +64,8 @@ function DebugIndicator() {
         <div 
           style={{
             position: 'fixed',
-            top: '50px',
-            right: '16px',
+            top: '20px',
+            right: '20px',
             width: '320px',
             maxHeight: '400px',
             backgroundColor: 'rgba(0, 0, 0, 0.9)',
@@ -131,11 +131,24 @@ function DebugIndicator() {
                   cursor: 'pointer',
                   padding: '0',
                   font: 'inherit',
+                  lineHeight: '1.5'
                 }}
               >
                 View sampling points image
               </button>
             )}
+            <div>
+              <a
+                href="/"
+                style={{ 
+                  color: '#4ade80',
+                  textDecoration: 'underline',
+                  lineHeight: '1.5'
+                }}
+                >
+                Turn off debug mode
+              </a>
+            </div>
           </div>
         </div>
       )}
