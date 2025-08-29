@@ -11,8 +11,10 @@ import TimeSlider from './components/TimeSlider';
 import DebugIndicator from './components/DebugIndicator';
 import SunCalc from 'suncalc';
 import mapboxgl from 'mapbox-gl';
+import MapboxGeocoder from '@mapbox/mapbox-gl-geocoder';
 
 import 'mapbox-gl/dist/mapbox-gl.css';
+import '@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css';
 
 mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_ACCESS_TOKEN;
 
@@ -167,6 +169,26 @@ function App() {
         }, 'road-label');
         shadowLayer.current = new BuildingShadows();
         map.current.addLayer(shadowLayer.current, '3d-buildings');
+
+        const geocoder = new MapboxGeocoder({
+          accessToken: mapboxgl.accessToken,
+          mapboxgl: mapboxgl,
+          placeholder: 'Search for places...',
+          proximity: {
+            longitude: manhattanCenter.lng,
+            latitude: manhattanCenter.lat
+          },
+          flyTo: false,
+          marker: false,
+        });
+        geocoder.on('result', (e) => {
+          const coords = e.result.center;
+          map.current.jumpTo({ center: coords, zoom: 15 });
+          setMapCenter({ lat: coords[1], lng: coords[0] });
+        });
+        
+        map.current.addControl(geocoder, 'top-right');
+        
         map.current.on('move', () => {
           setMapCenter(map.current.getCenter());
         });

@@ -22,8 +22,8 @@ function DebugIndicator() {
           position: 'fixed',
           top: '0px',
           right: '0px',
-          width: '82px',
-          height: '82px',
+          width: '58px',
+          height: '58px',
           cursor: 'pointer',
           zIndex: 1000,
           userSelect: 'none',
@@ -64,8 +64,8 @@ function DebugIndicator() {
         <div 
           style={{
             position: 'fixed',
-            top: '20px',
-            right: '20px',
+            top: '10px',
+            right: '10px',
             width: '320px',
             maxHeight: '400px',
             backgroundColor: 'rgba(0, 0, 0, 0.9)',

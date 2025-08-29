@@ -4,6 +4,7 @@
   "homepage": "https://matteosandrin.github.io/shady-directions/",
   "private": true,
   "dependencies": {
+    "@mapbox/mapbox-gl-geocoder": "^5.1.2",
     "@turf/distance": "^7.2.0",
     "@turf/turf": "^7.2.0",
     "mapbox-gl": "^2.15.0",
