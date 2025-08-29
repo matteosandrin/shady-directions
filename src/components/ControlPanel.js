@@ -171,8 +171,9 @@ const ControlPanel = ({
                                 <div style={{
                                   width: '8px',
                                   height: '8px',
-                                  border: '1px solid #555',
-                                  borderTop: '1px solid #white',
+                                  border: '2px solid #555',
+                                  borderTop: '2px solid #fff',
+                                  borderRight: '2px solid #fff',
                                   borderRadius: '50%',
                                   animation: 'spin 1s linear infinite'
                                 }}></div> : '○'
