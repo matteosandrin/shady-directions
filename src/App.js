@@ -1,7 +1,7 @@
 import { BuildingShadows } from './lib/shadowShader';
 import { formatDateTime, parseDateTime } from './lib/timeFormat';
 import { updateRouteShade } from './lib/routeAnalysis';
-import { findWalkingRoute } from './lib/routing';
+import { findWalkingRoute, ROUTE_PROGRESS_STATUS, getProgressMessage } from './lib/routing';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import ControlPanel from './components/ControlPanel';
 import ErrorScreen from './components/ErrorScreen';
@@ -30,6 +30,7 @@ function App() {
   const [route, setRoute] = useState(null);
   const [isLoadingRoute, setIsLoadingRoute] = useState(false);
   const [routeStats, setRouteStats] = useState(null);
+  const [routeProgress, setRouteProgress] = useState([]);
 
   const solarPosition = useMemo(() => {
     const date = parseDateTime(selectedDateTime);
@@ -45,10 +46,42 @@ function App() {
 
     setIsLoadingRoute(true);
     setRouteError(null);
+    
+    // Initialize progress steps
+    const progressSteps = [
+      { id: ROUTE_PROGRESS_STATUS.GETTING_WAYS_DATA, label: getProgressMessage(ROUTE_PROGRESS_STATUS.GETTING_WAYS_DATA), completed: false },
+      { id: ROUTE_PROGRESS_STATUS.COMPUTING_SHADE_MAP, label: getProgressMessage(ROUTE_PROGRESS_STATUS.COMPUTING_SHADE_MAP), completed: false },
+      { id: ROUTE_PROGRESS_STATUS.BUILDING_GRAPH, label: getProgressMessage(ROUTE_PROGRESS_STATUS.BUILDING_GRAPH), completed: false },
+      { id: ROUTE_PROGRESS_STATUS.FINDING_ROUTE, label: getProgressMessage(ROUTE_PROGRESS_STATUS.FINDING_ROUTE), completed: false }
+    ];
+    setRouteProgress(progressSteps);
+    
+    const onProgress = (status) => {
+      setRouteProgress(prevProgress => {
+        const newProgress = [...prevProgress];
+        
+        // Mark current step as completed and update to next step
+        if (status === ROUTE_PROGRESS_STATUS.GETTING_WAYS_DATA) {
+          // Starting, so no previous step to complete
+        } else if (status === ROUTE_PROGRESS_STATUS.COMPUTING_SHADE_MAP) {
+          newProgress[0].completed = true;
+        } else if (status === ROUTE_PROGRESS_STATUS.BUILDING_GRAPH) {
+          newProgress[1].completed = true;
+        } else if (status === ROUTE_PROGRESS_STATUS.FINDING_ROUTE) {
+          newProgress[2].completed = true;
+        } else if (status === ROUTE_PROGRESS_STATUS.ROUTE_COMPLETED) {
+          newProgress[3].completed = true;
+        }
+        
+        return newProgress;
+      });
+    };
+
     try {
       const date = parseDateTime(selectedDateTime);
       const options = {
         shadePreference: 0.5, // 0 = no preference, 1 = strong shade preference
+        onProgress
       }
       const routeData = await findWalkingRoute(start, end, date, options);
       setRoute(routeData);
@@ -58,6 +91,7 @@ function App() {
       setRouteError(error);
     } finally {
       setIsLoadingRoute(false);
+      setRouteProgress([]);
     }
   }, [selectedDateTime]);
 
@@ -294,6 +328,7 @@ function App() {
         isProcessingRoute={isLoadingRoute}
         clearRoute={clearRoute}
         routeStats={routeStats}
+        routeProgress={routeProgress}
       />
 
       <TimeSlider

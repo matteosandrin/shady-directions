@@ -1,3 +1,5 @@
+import { useState, useEffect, useRef } from 'react';
+
 const ControlPanel = ({
   solarPosition,
   startPoint,
@@ -5,8 +7,86 @@ const ControlPanel = ({
   routeData,
   isProcessingRoute,
   clearRoute,
-  routeStats
+  routeStats,
+  routeProgress
 }) => {
+  const [stepTimings, setStepTimings] = useState({});
+  const [currentStepStartTime, setCurrentStepStartTime] = useState(null);
+  const [currentTime, setCurrentTime] = useState(Date.now());
+  const recordedSteps = useRef(new Set());
+
+  // Track step changes and timing
+  useEffect(() => {
+    if (!routeProgress || routeProgress.length === 0) {
+      setStepTimings({});
+      setCurrentStepStartTime(null);
+      recordedSteps.current.clear();
+      return;
+    }
+
+    const currentStepIndex = routeProgress.findIndex(s => !s.completed);
+    const currentStep = currentStepIndex >= 0 ? routeProgress[currentStepIndex] : null;
+
+    if (currentStep && !currentStepStartTime) {
+      // Starting a new step
+      setCurrentStepStartTime(Date.now());
+    } else if (currentStepIndex === -1 && currentStepStartTime) {
+      // All steps completed, record final step timing
+      const lastCompletedStep = routeProgress[routeProgress.length - 1];
+      if (lastCompletedStep && !recordedSteps.current.has(lastCompletedStep.id)) {
+        const duration = Date.now() - currentStepStartTime;
+        setStepTimings(prev => ({
+          ...prev,
+          [lastCompletedStep.id]: duration
+        }));
+        recordedSteps.current.add(lastCompletedStep.id);
+      }
+      setCurrentStepStartTime(null);
+    } else if (currentStep && currentStepStartTime) {
+      // Check if we moved to a different step
+      const prevCompletedIndex = currentStepIndex - 1;
+      if (prevCompletedIndex >= 0) {
+        const prevStep = routeProgress[prevCompletedIndex];
+        if (prevStep.completed && !recordedSteps.current.has(prevStep.id)) {
+          // Previous step just completed
+          const duration = Date.now() - currentStepStartTime;
+          setStepTimings(prev => ({
+            ...prev,
+            [prevStep.id]: duration
+          }));
+          recordedSteps.current.add(prevStep.id);
+          setCurrentStepStartTime(Date.now()); // Start timing the new step
+        }
+      }
+    }
+  }, [routeProgress, currentStepStartTime]);
+
+  // Live timer update
+  useEffect(() => {
+    let interval;
+    if (isProcessingRoute && currentStepStartTime) {
+      interval = setInterval(() => {
+        setCurrentTime(Date.now());
+      }, 100); // Update every 100ms for smooth display
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isProcessingRoute, currentStepStartTime]);
+
+  // Helper function to get step timing display
+  const getStepTiming = (step, index) => {
+    if (stepTimings[step.id]) {
+      return `${(stepTimings[step.id] / 1000).toFixed(1)}s`;
+    } else if (step.completed) {
+      return '...';
+    } else if (currentStepStartTime && index === routeProgress.findIndex(s => !s.completed)) {
+      const elapsed = currentTime - currentStepStartTime;
+      return `${(elapsed / 1000).toFixed(1)}s`;
+    }
+    return '';
+  };
+
   return (
     <>
       <style>
@@ -63,17 +143,57 @@ const ControlPanel = ({
               <div style={{ color: '#00ff00' }}>✓ End point set</div>
               
               {isProcessingRoute && (
-                <div style={{ display: 'flex', alignItems: 'center', marginTop: '8px' }}>
-                  <div style={{
-                    width: '16px',
-                    height: '16px',
-                    border: '2px solid #555',
-                    borderTop: '2px solid #white',
-                    borderRadius: '50%',
-                    animation: 'spin 1s linear infinite',
-                    marginRight: '8px'
-                  }}></div>
-                  Calculating route...
+                <div style={{ marginTop: '8px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '6px' }}>
+                    Calculating route...
+                  </div>
+                  {routeProgress && routeProgress.length > 0 && (
+                    <div style={{ fontSize: '11px' }}>
+                      {routeProgress.map((step, index) => (
+                        <div key={step.id} style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'space-between',
+                          marginBottom: '3px',
+                          color: step.completed ? '#00ff00' : '#aaa'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center' }}>
+                            <div style={{
+                              width: '12px',
+                              height: '12px',
+                              marginRight: '6px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}>
+                              {step.completed ? '✓' : 
+                               (index === routeProgress.findIndex(s => !s.completed) ? 
+                                <div style={{
+                                  width: '8px',
+                                  height: '8px',
+                                  border: '1px solid #555',
+                                  borderTop: '1px solid #white',
+                                  borderRadius: '50%',
+                                  animation: 'spin 1s linear infinite'
+                                }}></div> : '○'
+                               )
+                              }
+                            </div>
+                            {step.label}
+                          </div>
+                          <div style={{ 
+                            fontSize: '10px', 
+                            fontFamily: 'monospace',
+                            color: '#888',
+                            minWidth: '35px',
+                            textAlign: 'right'
+                          }}>
+                            {getStepTiming(step, index)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
               

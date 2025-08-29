@@ -4,7 +4,30 @@ import { ShadeMapSampler } from './shadowShaderUtils';
 import path from 'ngraph.path';
 import createGraph from 'ngraph.graph';
 
-async function getWaysData(bounds) {
+// Progress status enum
+export const ROUTE_PROGRESS_STATUS = {
+  GETTING_WAYS_DATA: 'GETTING_WAYS_DATA',
+  COMPUTING_SHADE_MAP: 'COMPUTING_SHADE_MAP',
+  BUILDING_GRAPH: 'BUILDING_GRAPH',
+  APPLYING_SHADE_DATA: 'APPLYING_SHADE_DATA',
+  FINDING_ROUTE: 'FINDING_ROUTE',
+  ROUTE_COMPLETED: 'ROUTE_COMPLETED'
+};
+
+// Progress status to message mapping
+export const getProgressMessage = (status) => {
+  const messageMap = {
+    [ROUTE_PROGRESS_STATUS.GETTING_WAYS_DATA]: 'Getting ways data...',
+    [ROUTE_PROGRESS_STATUS.COMPUTING_SHADE_MAP]: 'Computing shade map...',
+    [ROUTE_PROGRESS_STATUS.BUILDING_GRAPH]: 'Building graph...',
+    [ROUTE_PROGRESS_STATUS.FINDING_ROUTE]: 'Finding route...',
+    [ROUTE_PROGRESS_STATUS.ROUTE_COMPLETED]: 'Route completed'
+  };
+  return messageMap[status] || 'Processing...';
+};
+
+async function getWaysData(bounds, onProgress) {
+  if (onProgress) onProgress(ROUTE_PROGRESS_STATUS.GETTING_WAYS_DATA);
   const bbox = `${bounds.south},${bounds.west},${bounds.north},${bounds.east}`;
   const query = `[out:json][timeout:180];(way["highway"]["area"!~"yes"]["access"!~"private"]["highway"!~"abandoned|bus_guideway|construction|cycleway|motor|no|planned|platform|proposed|raceway|razed|rest_area|services"]["foot"!~"no"]["service"!~"private"]["sidewalk"!~"separate"]["sidewalk:both"!~"separate"]["sidewalk:left"!~"separate"]["sidewalk:right"!~"separate"](${bbox});>;);out;`;
   const overpassUrl = 'https://overpass-api.de/api/interpreter';
@@ -21,10 +44,11 @@ async function getWaysData(bounds) {
   return await response.json();
 }
 
-async function getShadeData(bounds, date) {
+async function getShadeData(bounds, date, onProgress) {
   if (!bounds) return;
 
   try {
+    if (onProgress) onProgress(ROUTE_PROGRESS_STATUS.COMPUTING_SHADE_MAP);
     const startTime = performance.now();
     const shadeMapResult = await calculateShadeMap(bounds, date);
     console.log('Shade map generated:', shadeMapResult);
@@ -47,21 +71,28 @@ function getBboxForPoints(start, end) {
 }
 
 export async function findWalkingRoute(start, end, date, options = {}) {
+  const { onProgress, ...routingOptions } = options;
+  
   const bounds = getBboxForPoints(start, end);
-  const waysData = await getWaysData(bounds);
-  const shadeData = await getShadeData(bounds, date);
-  const graph = await buildGraph(waysData, shadeData);
+  const waysData = await getWaysData(bounds, onProgress);
+  const shadeData = await getShadeData(bounds, date, onProgress);
+  const graph = await buildGraph(waysData, shadeData, onProgress);
+  
+  if (onProgress) onProgress(ROUTE_PROGRESS_STATUS.FINDING_ROUTE);
   const route = findRoute(graph, {
     latitude: start.lat,
     longitude: start.lng
   }, {
     latitude: end.lat,
     longitude: end.lng
-  }, options);
+  }, routingOptions);
+  
+  if (onProgress) onProgress(ROUTE_PROGRESS_STATUS.ROUTE_COMPLETED);
   return route;
 };
 
-export async function buildGraph(waysData, shadeData = null) {
+export async function buildGraph(waysData, shadeData = null, onProgress) {
+  if (onProgress) onProgress(ROUTE_PROGRESS_STATUS.BUILDING_GRAPH);
   const startTime = performance.now();
   const elements = waysData.elements;
   const nodes = new Map(); // osmNodeId -> {lat, lon, idx}
@@ -232,7 +263,6 @@ export async function buildGraph(waysData, shadeData = null) {
     }
   }
 
-  // Phase 5: Initialize shade data
   const shadeByEdgeId = new Map();
   const shadeMapSampler = new ShadeMapSampler(shadeData);
   if (shadeData) {
