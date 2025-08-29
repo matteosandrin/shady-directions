@@ -2,6 +2,7 @@ import { BuildingShadows } from './lib/shadowShader';
 import { formatDateTime, parseDateTime } from './lib/timeFormat';
 import { updateRouteShade } from './lib/routeAnalysis';
 import { findWalkingRoute, ROUTE_PROGRESS_STATUS, getProgressMessage } from './lib/routing';
+import { debugLog, debugError } from './lib/debugUtils';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import ControlPanel from './components/ControlPanel';
 import ErrorScreen from './components/ErrorScreen';
@@ -86,7 +87,7 @@ function App() {
       const routeData = await findWalkingRoute(start, end, date, options);
       setRoute(routeData);
     } catch (error) {
-      console.error('Error fetching route:', error);
+      debugError('Error fetching route:', error);
       setRoute(null);
       setRouteError(error);
     } finally {
@@ -98,15 +99,15 @@ function App() {
   const handleMapClick = useCallback((e) => {
     const { lng, lat } = e.lngLat;
     if (!startPoint) {
-      console.log('Setting start point');
+      debugLog('Setting start point: ', { lng, lat });
       setStartPoint({ lng, lat });
     } else if (!endPoint) {
-      console.log('Setting end point');
+      debugLog('Setting end point: ', { lng, lat });
       const end = { lng, lat };
       setEndPoint(end);
       fetchRoute(startPoint, end);
     } else {
-      console.log('Resetting points');
+      debugLog('Resetting points');
       setStartPoint({ lng, lat });
       setEndPoint(null);
       setRoute(null);
@@ -281,7 +282,7 @@ function App() {
     });
 
     if (route) {
-      console.log('Adding route to map:', route);
+      debugLog('Adding route to map:', route);
       map.current.addSource(routeSourceId, {
         type: 'geojson',
         data: {

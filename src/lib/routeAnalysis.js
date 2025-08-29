@@ -1,4 +1,5 @@
 import { distance } from '@turf/turf';
+import { debugLog } from './debugUtils';
 
 /**
  * Draw shaded and sunny route segments on the map
@@ -95,8 +96,6 @@ function drawRouteSegments(shadedSegments, sunnySegments, map) {
       }
     }, '3d-buildings');
   }
-
-  console.log(`Route segments drawn: ${shadedSegments.length} shaded, ${sunnySegments.length} sunny`);
 }
 
 /**
@@ -108,7 +107,7 @@ function drawRouteSegments(shadedSegments, sunnySegments, map) {
 export function updateRouteShade(route, shadowLayer, map) {
   const { shadedSegments, sunnySegments, stats } = computeSegmentsAndStats(route);
   drawRouteSegments(shadedSegments, sunnySegments, map);
-  console.log(`Route analysis complete: ${stats.shadedPercentage}% shaded (${stats.shadedDistance}m), ${stats.sunnyPercentage}% sunny (${stats.sunnyDistance}m), total: ${stats.totalDistance}m`);
+  debugLog(`Route analysis: ${stats.shadedPercentage}% shaded (${stats.shadedDistance}m), ${stats.sunnyPercentage}% sunny (${stats.sunnyDistance}m), total: ${stats.totalDistance}m`);
   return stats;
 }
 

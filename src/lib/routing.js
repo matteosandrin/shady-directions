@@ -1,6 +1,7 @@
 import { distance } from '@turf/distance';
 import { generateShadeMap, SHADE_TYPE } from './shadowShader';
 import { ShadowSampler } from './shadowSampler';
+import { debugLog, debugWarn, debugError } from './debugUtils';
 import path from 'ngraph.path';
 import createGraph from 'ngraph.graph';
 
@@ -51,12 +52,12 @@ async function getShadeData(bounds, date, onProgress) {
     if (onProgress) onProgress(ROUTE_PROGRESS_STATUS.COMPUTING_SHADE_MAP);
     const startTime = performance.now();
     const shadeMapResult = await generateShadeMap(bounds, date, SHADE_TYPE.IMAGE);
-    console.log('Shade map generated:', shadeMapResult);
+    debugLog('Shade map generated:', shadeMapResult);
     const endTime = performance.now() - startTime;
-    console.log(`Shade map computation time: ${endTime.toFixed(1)} ms`);
+    debugLog(`Shade map computation time: ${endTime.toFixed(1)} ms`);
     return shadeMapResult;
   } catch (error) {
-    console.error('Error generating shade map:', error);
+    debugError('Error generating shade map:', error);
   }
 };
 
@@ -183,7 +184,7 @@ export async function buildGraph(waysData, shadeData = null, onProgress) {
     const validNodes = el.nodes.filter(nodeId => nodes.has(nodeId));
 
     if (validNodes.length < 2) {
-      console.warn(`Way ${el.id} has fewer than 2 valid nodes, skipping`);
+      debugWarn(`Way ${el.id} has fewer than 2 valid nodes, skipping`);
       continue;
     }
 
@@ -213,7 +214,7 @@ export async function buildGraph(waysData, shadeData = null, onProgress) {
       const length = distance([nodeA.lon, nodeA.lat], [nodeB.lon, nodeB.lat], { units: 'meters' });
 
       if (length === 0) {
-        console.warn(`Zero-length edge in way ${el.id} between nodes ${nodeAId} and ${nodeBId}`);
+        debugWarn(`Zero-length edge in way ${el.id} between nodes ${nodeAId} and ${nodeBId}`);
         continue;
       }
 
@@ -318,8 +319,8 @@ export async function buildGraph(waysData, shadeData = null, onProgress) {
   });
 
   const endTime = performance.now() - startTime;
-  console.log(`Graph built: ${nodes.size} nodes, ${edgesCreated} edges from ${waysProcessed} ways`);
-  console.log(`Graph construction time: ${endTime.toFixed(1)} ms`);
+  debugLog(`Graph built: ${nodes.size} nodes, ${edgesCreated} edges from ${waysProcessed} ways`);
+  debugLog(`Graph generation time: ${endTime.toFixed(1)} ms`);
 
   return graph;
 }
@@ -446,14 +447,10 @@ function nearestNode(graph, lat, lon) {
 // Main route finding function
 export function findRoute(graph, start, goal, options = {}) {
   const startTime = performance.now();
-  console.log(`Finding route from (${start.latitude}, ${start.longitude}) to (${goal.latitude}, ${goal.longitude})`);
+  debugLog(`Finding route from (${start.latitude}, ${start.longitude}) to (${goal.latitude}, ${goal.longitude})`);
 
   const startIdx = nearestNode(graph, start.latitude, start.longitude);
   const goalIdx = nearestNode(graph, goal.latitude, goal.longitude);
-
-  console.log(`Nearest nodes:`);
-  console.log(graph.ngraph.getNode(startIdx))
-  console.log(graph.ngraph.getNode(goalIdx));
 
   if (startIdx === -1 || goalIdx === -1) {
     throw new Error("Could not find nearby nodes for start or goal coordinates");
@@ -462,7 +459,7 @@ export function findRoute(graph, start, goal, options = {}) {
   const result = astar(graph, startIdx, goalIdx, options);
 
   if (result.path.length === 0) {
-    console.warn("No route found between the specified points");
+    debugWarn("No route found between the specified points");
     throw new Error("No route found between the specified points");
   }
 
@@ -473,8 +470,8 @@ export function findRoute(graph, start, goal, options = {}) {
   });
 
   const endTime = performance.now() - startTime;
-  console.log(`Route found: ${result.path.length} nodes, ${result.distance.toFixed(0)}m, ${result.time_s.toFixed(1)}s`);
-  console.log(`Route computation time: ${endTime.toFixed(1)} ms`);
+  debugLog(`Route found: ${result.path.length} nodes, ${result.distance.toFixed(0)}m, ${result.time_s.toFixed(1)}s`);
+  debugLog(`Route computation time: ${endTime.toFixed(1)} ms`);
   return {
     coordinates,
     distance: result.distance,

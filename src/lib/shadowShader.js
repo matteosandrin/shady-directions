@@ -12,7 +12,6 @@ export class BuildingShadows {
     this.date = new Date();
   }
   updateDate(date) {
-    console.log("Updating shadow date to", date);
     this.date = date;
   }
   onAdd(map, gl) {

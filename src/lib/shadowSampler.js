@@ -1,4 +1,5 @@
 import { distance } from '@turf/distance';
+import { debugLog } from './debugUtils';
 
 export class ShadowSampler {
   constructor(shadeData) {
@@ -7,11 +8,6 @@ export class ShadowSampler {
     this.height = shadeData.image.height;
     this.pixels = shadeData.image.pixels; // Direct pixel data (Uint8ClampedArray)
     this.history = []
-    
-    console.log('Pixel data loaded directly');
-    console.log('Pixel data length:', this.pixels.length);
-    console.log('Width:', this.width, 'Height:', this.height);
-    console.log('Expected length:', this.width * this.height * 4); // RGBA = 4 bytes per pixel
   }
 
   sampleAt(lat, lon) {
