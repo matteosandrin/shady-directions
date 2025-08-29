@@ -109,25 +109,28 @@ const ControlPanel = ({
         maxWidth: '220px'
       }}>
         <h3 style={{ margin: '0 0 10px 0' }}>Shady walking directions</h3>
+        <div style={{ fontSize: '11px', color: '#aaa' }}>
+          Made by <a style={{ color: '#aaa' }} href="https://sandr.in" target="_blank" rel="noreferrer">Matteo Sandrin</a>
+        </div>
         <p>
           Plan a walking route that maximizes shade, based on the current sun position.
         </p>
-        <div>
-          {solarPosition && (
-            <div style={{ fontSize: '11px', color: '#aaa' }}>
-              <div>Sun elevation: {(solarPosition.elevation * 180 / Math.PI).toFixed(1)}°</div>
-              <div>Sun azimuth: {(solarPosition.azimuth * 180 / Math.PI).toFixed(1)}°</div>
-              {solarPosition.elevation <= 0 && (
-                <div style={{ color: '#ff6b6b', marginTop: '4px' }}>Sun is below horizon</div>
-              )}
-            </div>
-          )}
-        </div>
         <div style={{ marginTop: '15px', borderTop: '1px solid #555', paddingTop: '15px' }}>
           <h4 style={{ margin: '0 0 10px 0', fontSize: '16px' }}>Route Planning</h4>
+          <div>
+            {solarPosition && (
+              <div style={{ fontSize: '11px', color: '#aaa' }}>
+                <div>Sun elevation: {(solarPosition.elevation * 180 / Math.PI).toFixed(1)}°</div>
+                <div>Sun azimuth: {(solarPosition.azimuth * 180 / Math.PI).toFixed(1)}°</div>
+                {solarPosition.elevation <= 0 && (
+                  <div style={{ color: '#ff6b6b', marginTop: '4px' }}>Sun is below horizon</div>
+                )}
+              </div>
+            )}
+          </div>
           
           {!startPoint && !endPoint && (
-            <div style={{ color: '#aaa', fontSize: '12px' }}>
+            <div style={{ color: 'white', fontSize: '12px', marginTop: '15px' }}>
               Click on map to set start point
             </div>
           )}
