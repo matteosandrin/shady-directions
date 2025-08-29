@@ -128,135 +128,137 @@ const ControlPanel = ({
               </div>
             )}
           </div>
-          
-          {!startPoint && !endPoint && (
-            <div style={{ color: 'white', fontSize: '12px', marginTop: '15px' }}>
-              Click on map to set start point
-            </div>
-          )}
-          
-          {startPoint && !endPoint && (
-            <div style={{ color: '#aaa', fontSize: '12px' }}>
-              <div style={{ color: '#00ff00' }}>✓ Start point set</div>
-              <div>Click on map to set end point</div>
-            </div>
-          )}
-          
-          {startPoint && endPoint && (
-            <div style={{ fontSize: '12px' }}>
-              <div style={{ color: '#00ff00' }}>✓ Start point set</div>
-              <div style={{ color: '#00ff00' }}>✓ End point set</div>
-              
-              {isProcessingRoute && (
-                <div style={{ marginTop: '8px' }}>
-                  <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '6px' }}>
-                    Calculating route...
-                  </div>
-                  {routeProgress && routeProgress.length > 0 && (
-                    <div style={{ fontSize: '11px' }}>
-                      {routeProgress.map((step, index) => (
-                        <div key={step.id} style={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          justifyContent: 'space-between',
-                          marginBottom: '3px',
-                          color: step.completed ? '#00ff00' : '#aaa'
-                        }}>
-                          <div style={{ display: 'flex', alignItems: 'center' }}>
-                            <div style={{
-                              width: '12px',
-                              height: '12px',
-                              marginRight: '6px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center'
-                            }}>
-                              {step.completed ? '✓' : 
-                               (index === routeProgress.findIndex(s => !s.completed) ? 
-                                <div style={{
-                                  width: '8px',
-                                  height: '8px',
-                                  border: '2px solid #555',
-                                  borderTop: '2px solid #fff',
-                                  borderRight: '2px solid #fff',
-                                  borderRadius: '50%',
-                                  animation: 'spin 1s linear infinite'
-                                }}></div> : '○'
-                               )
-                              }
-                            </div>
-                            {step.label}
-                          </div>
-                          <div style={{ 
-                            fontSize: '10px', 
-                            fontFamily: 'monospace',
-                            color: '#888',
-                            minWidth: '35px',
-                            textAlign: 'right'
+          <div style={{ marginTop: '10px' }}>
+            {!startPoint && !endPoint && (
+              <div style={{ color: 'white', fontSize: '12px' }}>
+                Click on map to set start point
+              </div>
+            )}
+            
+            {startPoint && !endPoint && (
+              <div style={{ color: 'white', fontSize: '12px'}}>
+                <div style={{ color: '#00ff00' }}>✓ Start point set</div>
+                <div style={{ marginTop: '5px' }}>Click on map to set end point</div>
+              </div>
+            )}
+            
+            {startPoint && endPoint && (
+              <div style={{ fontSize: '12px' }}>
+                <div style={{ color: '#00ff00' }}>✓ Start point set</div>
+                <div style={{ color: '#00ff00', marginTop: '5px' }}>✓ End point set</div>
+                
+                {isProcessingRoute && (
+                  <div style={{ marginTop: '8px' }}>
+                    <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '6px' }}>
+                      Calculating route...
+                    </div>
+                    {routeProgress && routeProgress.length > 0 && (
+                      <div style={{ fontSize: '11px' }}>
+                        {routeProgress.map((step, index) => (
+                          <div key={step.id} style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'space-between',
+                            marginBottom: '3px',
+                            color: step.completed ? '#00ff00' : '#aaa'
                           }}>
-                            {getStepTiming(step, index)}
+                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                              <div style={{
+                                width: '12px',
+                                height: '12px',
+                                marginRight: '6px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}>
+                                {step.completed ? '✓' : 
+                                (index === routeProgress.findIndex(s => !s.completed) ? 
+                                  <div style={{
+                                    width: '8px',
+                                    height: '8px',
+                                    border: '2px solid #555',
+                                    borderTop: '2px solid #fff',
+                                    borderRight: '2px solid #fff',
+                                    borderRadius: '50%',
+                                    animation: 'spin 1s linear infinite'
+                                  }}></div> : '○'
+                                )
+                                }
+                              </div>
+                              {step.label}
+                            </div>
+                            <div style={{ 
+                              fontSize: '10px', 
+                              fontFamily: 'monospace',
+                              color: '#888',
+                              minWidth: '35px',
+                              textAlign: 'right'
+                            }}>
+                              {getStepTiming(step, index)}
+                            </div>
                           </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {routeData && !isProcessingRoute && (
+                  <div style={{ marginTop: '8px', fontSize: '11px', color: '#aaa'}}>
+                    <div>Distance: {(routeData.distance / 1000).toFixed(2)} km</div>
+                    <div>Duration: {Math.round(routeData.duration / 60)} min</div>
+                    
+                    {routeStats && (
+                      <div style={{ marginTop: '15px', borderTop: '1px solid #444', paddingTop: '15px' }}>
+                        <h4 style={{ margin: '0 0 10px 0', fontSize: '16px', color: 'white'}}>
+                          Shade Analysis
+                        </h4>
+                        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '2px' }}>
+                          <div style={{ 
+                            width: '12px', 
+                            height: '12px', 
+                            backgroundColor: '#8b5cf6', 
+                            marginRight: '6px',
+                            borderRadius: '2px'
+                          }}></div>
+                          <span>Shaded: {routeStats.shadedPercentage}% ({routeStats.shadedDistance}m)</span>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-              
-              {routeData && !isProcessingRoute && (
-                <div style={{ marginTop: '8px', fontSize: '11px', color: '#aaa'}}>
-                  <div>Distance: {(routeData.distance / 1000).toFixed(2)} km</div>
-                  <div>Duration: {Math.round(routeData.duration / 60)} min</div>
-                  
-                  {routeStats && (
-                    <div style={{ marginTop: '8px', borderTop: '1px solid #444', paddingTop: '8px' }}>
-                      <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '4px', color: '#fff' }}>
-                        Shade Analysis:
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                          <div style={{ 
+                            width: '12px', 
+                            height: '12px', 
+                            backgroundColor: '#fbbf24', 
+                            marginRight: '6px',
+                            borderRadius: '2px'
+                          }}></div>
+                          <span>Sunny: {routeStats.sunnyPercentage}% ({routeStats.sunnyDistance}m)</span>
+                        </div>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', marginBottom: '2px' }}>
-                        <div style={{ 
-                          width: '12px', 
-                          height: '12px', 
-                          backgroundColor: '#8b5cf6', 
-                          marginRight: '6px',
-                          borderRadius: '2px'
-                        }}></div>
-                        <span>Shaded: {routeStats.shadedPercentage}% ({routeStats.shadedDistance}m)</span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center' }}>
-                        <div style={{ 
-                          width: '12px', 
-                          height: '12px', 
-                          backgroundColor: '#fbbf24', 
-                          marginRight: '6px',
-                          borderRadius: '2px'
-                        }}></div>
-                        <span>Sunny: {routeStats.sunnyPercentage}% ({routeStats.sunnyDistance}m)</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-          
-          {(startPoint || endPoint) && (
-            <button
-              onClick={clearRoute}
-              style={{
-                marginTop: '10px',
-                padding: '8px 16px',
-                backgroundColor: '#dc3545',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '12px'
-              }}
-            >
-              Clear Route
-            </button>
-          )}
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {(startPoint || endPoint) && (
+              <button
+                onClick={clearRoute}
+                style={{
+                  marginTop: '15px',
+                  padding: '8px 16px',
+                  backgroundColor: '#dc3545',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  width: '100%'
+                }}
+              >
+                Clear Route
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </>
