@@ -1,6 +1,6 @@
 import { distance } from '@turf/distance';
-import { calculateShadeMap } from './shadowShader';
-import { ShadeMapSampler } from './shadowShaderUtils';
+import { generateShadeMap, SHADE_TYPE } from './shadowShader';
+import { ShadowSampler } from './shadowSampler';
 import path from 'ngraph.path';
 import createGraph from 'ngraph.graph';
 
@@ -50,7 +50,7 @@ async function getShadeData(bounds, date, onProgress) {
   try {
     if (onProgress) onProgress(ROUTE_PROGRESS_STATUS.COMPUTING_SHADE_MAP);
     const startTime = performance.now();
-    const shadeMapResult = await calculateShadeMap(bounds, date);
+    const shadeMapResult = await generateShadeMap(bounds, date, SHADE_TYPE.IMAGE);
     console.log('Shade map generated:', shadeMapResult);
     const endTime = performance.now() - startTime;
     console.log(`Shade map computation time: ${endTime.toFixed(1)} ms`);
@@ -264,35 +264,15 @@ export async function buildGraph(waysData, shadeData = null, onProgress) {
   }
 
   const shadeByEdgeId = new Map();
-  const shadeMapSampler = new ShadeMapSampler(shadeData);
+  const shadowSampler = new ShadowSampler(shadeData);
   if (shadeData) {
     for (let edgeIdx = 0; edgeIdx < edgesMeta.length; edgeIdx++) {
       const { eid, a, b } = edgesMeta[edgeIdx];
       const [latA, lonA] = coords[a];
       const [latB, lonB] = coords[b];
 
-      // Sample multiple points along the edge for better accuracy
-      const samples = 5;
-      let shadeSum = 0;
-      let validSamples = 0;
-
-      for (let i = 0; i <= samples; i++) {
-        const t = i / samples;
-        const lat = latA + t * (latB - latA);
-        const lon = lonA + t * (lonB - lonA);
-        const isShaded = shadeMapSampler.sampleAt(lat, lon);
-        if (isShaded !== null) {
-          shadeSum += isShaded ? 1 : 0;
-          validSamples++;
-        }
-      }
-
-      if (validSamples > 0) {
-        const shadeFraction = shadeSum / validSamples; // 0 = no shade, 1 = full shade
-        shadeByEdgeId.set(eid, shadeFraction);
-      } else {
-        shadeByEdgeId.set(eid, 0.0); // Default to no shade if no valid samples
-      }
+      const shadeValue = shadowSampler.sampleAlongLine(latA, lonA, latB, lonB);
+      shadeByEdgeId.set(eid, shadeValue);
 
       // Yield every 100 edges to prevent blocking
       if (edgeIdx % 100 === 0) {
@@ -305,8 +285,13 @@ export async function buildGraph(waysData, shadeData = null, onProgress) {
       const shade = shadeByEdgeId.get(link.data.eid) ?? 0;
       link.data.shade = shade;
     });
+  } else {
+    // If no shade data, set all edges to 0 shade
+    ngraphInstance.forEachLink(link => {
+      link.data.shade = 0.0;
+      shadeByEdgeId.set(link.data.eid, 0.0);
+    });
   }
-  shadeMapSampler.dispose();
 
   // Return enhanced graph structure with both ngraph instance and legacy compatibility
   const graph = {

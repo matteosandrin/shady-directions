@@ -206,8 +206,13 @@ export class BuildingShadows {
   }
 }
 
+export const SHADE_TYPE = {
+  MAP: 'MAP',
+  IMAGE: 'IMAGE'
+};
+
 // Function to calculate shade map for arbitrary bounding box
-export function calculateShadeMap(bounds, date = new Date()) {
+export function generateShadeMap(bounds, date = new Date(), output) {
   return new Promise((resolve, reject) => {
     try {
       // Calculate center and zoom level for the bounding box at zoom 15
@@ -312,14 +317,45 @@ export function calculateShadeMap(bounds, date = new Date()) {
           // Wait for shadows to render
           setTimeout(() => {
             const result = {
-              map,
-              shadowLayer,
               bounds,
               center: [centerLng, centerLat],
               zoom,
               size: { width: mapWidth, height: mapHeight },
               date
             };
+            if (output === SHADE_TYPE.IMAGE) {
+              // Get pixel data directly from WebGL canvas
+              const canvas = map.getCanvas();
+              const gl = map.painter.context.gl;
+              const width = canvas.width;
+              const height = canvas.height;
+              
+              // Read pixels from WebGL context
+              const pixels = new Uint8Array(width * height * 4);
+              gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+
+              const flippedPixels = new Uint8Array(width * height * 4);
+              // Flip the pixel data vertically
+              for (let y = 0; y < height; y++) {
+                const srcStart = y * width * 4;
+                const destStart = (height - y - 1) * width * 4;
+                flippedPixels.set(pixels.subarray(srcStart, srcStart + width * 4), destStart);
+              }
+              
+              result.image = {
+                pixels: flippedPixels,
+                width,
+                height
+              };
+              
+              if (map) map.remove();
+              if (container && container.parentNode) document.body.removeChild(container);
+              
+            } else if (output === SHADE_TYPE.MAP) {
+              result.map = map;
+              result.shadowLayer = shadowLayer;
+            }
+            result.shadeType = output;
             resolve(result);
           }, 100);
         }, 500);
