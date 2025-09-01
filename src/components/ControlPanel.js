@@ -10,7 +10,8 @@ const ControlPanel = ({
   isProcessingRoute,
   clearRoute,
   routeStats,
-  routeProgress
+  routeProgress,
+  onGeolocate
 }) => {
   const [stepTimings, setStepTimings] = useState({});
   const [currentStepStartTime, setCurrentStepStartTime] = useState(null);
@@ -99,8 +100,18 @@ const ControlPanel = ({
   };
 
   return (
-    <div className="absolute top-2 left-2 right-2 bg-black/80 text-white p-4 rounded-lg text-sm md:max-w-[250px]">
-        <h3 className="text-lg">Shady walking directions</h3>
+    <div className="absolute top-2 left-2 right-2 bg-black/80 text-white p-4 rounded-lg text-sm md:max-w-[280px]">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg">Shady walking directions</h3>
+          {onGeolocate && (
+            <button
+              onClick={onGeolocate}
+              className="px-3 py-1.5 bg-blue-600 text-white border-none rounded cursor-pointer text-xs hover:bg-blue-700 transition-colors"
+            >
+              📍
+            </button>
+          )}
+        </div>
         <div className="hidden md:block">
           <div className="text-xs text-gray-400 mt-1">
             Made by <a className="text-gray-400" href="https://sandr.in" target="_blank" rel="noreferrer">Matteo Sandrin</a>

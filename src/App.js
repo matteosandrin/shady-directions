@@ -142,6 +142,63 @@ function App() {
     setRouteError(null);
   }, []);
 
+  const handleGeolocate = useCallback(() => {
+    if (!navigator.geolocation) {
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        const userLocation = { lng: longitude, lat: latitude };
+        debugLog('User location:', userLocation);
+        // Add or update user location marker
+        if (map.current) {
+          // Remove existing user location marker if it exists
+          if (map.current.getSource('user-location')) {
+            map.current.removeLayer('user-location');
+            map.current.removeSource('user-location');
+          }
+          map.current.addSource('user-location', {
+            type: 'geojson',
+            data: {
+              type: 'Feature',
+              geometry: {
+                type: 'Point',
+                coordinates: [longitude, latitude]
+              },
+              properties: {}
+            }
+          });
+          map.current.addLayer({
+            id: 'user-location',
+            type: 'circle',
+            source: 'user-location',
+            paint: {
+              'circle-radius': 8,
+              'circle-color': '#3b82f6', // Blue color
+              'circle-stroke-color': '#ffffff',
+              'circle-stroke-width': 2
+            }
+          });
+          map.current.flyTo({
+            center: [longitude, latitude],
+            zoom: 15,
+            duration: 1000
+          });
+        }
+      },
+      (error) => {
+        debugError('Geolocation error:', error);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 600000 // 10 minutes
+      }
+    );
+  }, []);
+
   const closeRouteError = useCallback(() => {
     setRouteError(null);
     clearRoute();
@@ -357,6 +414,7 @@ function App() {
         clearRoute={clearRoute}
         routeStats={routeStats}
         routeProgress={routeProgress}
+        onGeolocate={handleGeolocate}
       />
 
       <TimeSlider
