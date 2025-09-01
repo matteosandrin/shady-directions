@@ -88,18 +88,19 @@ const ControlPanel = ({
   };
 
   return (
-    <div className="absolute top-5 left-5 bg-black/80 text-white p-4 rounded-lg text-sm max-w-[220px]">
-        <h3 className="m-0 mb-2.5">Shady walking directions</h3>
-        <div className="text-xs text-gray-400">
-          Made by <a className="text-gray-400" href="https://sandr.in" target="_blank" rel="noreferrer">Matteo Sandrin</a>
+    <div className="absolute top-2 left-2 right-2 bg-black/80 text-white p-4 rounded-lg text-sm md:max-w-[250px]">
+        <h3 className="text-lg">Shady walking directions</h3>
+        <div className="hidden md:block">
+          <div className="text-xs text-gray-400 mt-1">
+            Made by <a className="text-gray-400" href="https://sandr.in" target="_blank" rel="noreferrer">Matteo Sandrin</a>
+          </div>
+          <p className="mt-4">
+            Plan a walking route that maximizes shade, based on the current sun position.
+          </p>
         </div>
-        <p>
-          Plan a walking route that maximizes shade, based on the current sun position.
-        </p>
-        <div className="mt-4 border-t border-gray-600 pt-4">
-          <h4 className="m-0 mb-2.5 text-base">Route Planning</h4>
+        <div className="mt-4">
           <div>
-            {solarPosition && (
+            {solarPosition && (!routeData || routeData.length === 0) && (
               <div className="text-xs text-gray-400">
                 <div>Sun elevation: {(solarPosition.elevation * 180 / Math.PI).toFixed(1)}°</div>
                 <div>Sun azimuth: {(solarPosition.azimuth * 180 / Math.PI).toFixed(1)}°</div>
@@ -109,14 +110,14 @@ const ControlPanel = ({
               </div>
             )}
           </div>
-          <div className="mt-2.5">
+          <div className="mt-4">
             {!startPoint && !endPoint && (
               <div className="text-white text-xs">
                 Click on map to set start point
               </div>
             )}
             
-            {startPoint && !endPoint && (
+            {startPoint && !endPoint && !routeData && (
               <div className="text-white text-xs">
                 <div className="text-start-marker">✓ Start point set</div>
                 <div className="mt-1.5">Click on map to set end point</div>
@@ -125,8 +126,10 @@ const ControlPanel = ({
             
             {startPoint && endPoint && (
               <div className="text-xs">
-                <div className="text-start-marker">✓ Start point set</div>
-                <div className="text-start-marker mt-1.5">✓ End point set</div>
+                { !routeData && <div>
+                  <div className="text-start-marker">✓ Start point set</div>
+                  <div className="text-start-marker mt-1.5">✓ End point set</div>
+                </div>}
                 
                 {isProcessingRoute && (
                   <div className="mt-2">
@@ -160,15 +163,10 @@ const ControlPanel = ({
                 )}
                 
                 {routeData && !isProcessingRoute && (
-                  <div className="mt-2 text-xs text-gray-400">
-                    <div>Distance: {(routeData.distance / 1000).toFixed(2)} km</div>
-                    <div>Duration: {Math.round(routeData.duration / 60)} min</div>
-                    
+                  <div className="text-xs text-gray-400">
+                    <div>Total distance: {(routeData.distance / 1000).toFixed(2)} km ({Math.round(routeData.duration / 60)} min)</div>                
                     {routeStats && (
-                      <div className="mt-4 border-t border-gray-700 pt-4">
-                        <h4 className="m-0 mb-2.5 text-base text-white">
-                          Shade Analysis
-                        </h4>
+                      <div className="mt-2">
                         <div className="flex items-center mb-0.5">
                           <div className="w-3 h-3 bg-shaded-route mr-1.5 rounded-sm"></div>
                           <span>Shaded: {routeStats.shadedPercentage}% ({routeStats.shadedDistance}m)</span>

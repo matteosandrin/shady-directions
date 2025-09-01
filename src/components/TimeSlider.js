@@ -32,10 +32,10 @@ const TimeSlider = ({ selectedDateTime, setSelectedDateTime }) => {
   }, [selectedDateTime, setSelectedDateTime]);
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white/95 px-5 py-2.5 border-t border-gray-300 shadow-[0_-2px_10px_rgba(0,0,0,0.1)] z-[1000] backdrop-blur-[10px]">
-      <div className="flex md:flex-row flex-col md:items-center items-stretch md:gap-5 gap-2 max-w-full">
+    <div className="fixed bottom-2 left-2 right-2 bg-black/80 rounded-lg px-2.5 md:px-5 py-2.5 z-[1000]">
+      <div className="flex flex-row items-center md:gap-5 gap-2 max-w-full">
         {/* DateTime picker - shows first on mobile (above slider) */}
-        <div className="flex items-center justify-center md:justify-start gap-4 min-w-auto order-1 md:min-w-[200px] md:order-2">
+        <div className="flex items-center justify-center gap-4 min-w-auto order-2">
           <input
             type="datetime-local"
             value={selectedDateTime}
@@ -50,7 +50,7 @@ const TimeSlider = ({ selectedDateTime, setSelectedDateTime }) => {
           max="1439"
           value={timeOfDay}
           onChange={handleSliderChange}
-          className="flex-1 h-2 rounded outline-none cursor-pointer range-slider time-slider order-2 w-full md:order-1 md:w-auto appearance-none"/>
+          className="flex-1 h-2 rounded outline-none cursor-pointer range-slider time-slider border border-gray-500 order-2 w-full md:order-1 md:w-auto appearance-none"/>
       </div>
     </div>
   );

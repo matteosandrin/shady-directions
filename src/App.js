@@ -20,6 +20,19 @@ mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_ACCESS_TOKEN;
 
 const manhattanCenter = { lat: 40.7128, lng: -74.006 };
 
+const isMobileDevice = () => {
+  const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  const isSmallScreen = window.innerWidth <= 768 || window.innerHeight <= 768;
+  const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|mobile|CriOS/i;
+  const isMobileUserAgent = mobileRegex.test(navigator.userAgent);
+  const hasMobileAPI = 'orientation' in window || 'DeviceOrientationEvent' in window;
+  // Device is considered mobile if:
+  // 1. Has touch AND (small screen OR mobile user agent OR mobile API)
+  // 2. OR mobile user agent AND small screen
+  return (hasTouch && (isSmallScreen || isMobileUserAgent || hasMobileAPI)) ||
+         (isMobileUserAgent && isSmallScreen);
+};
+
 function App() {
   const mapContainer = useRef(null);
   const map = useRef(null);
@@ -187,7 +200,10 @@ function App() {
           setMapCenter({ lat: coords[1], lng: coords[0] });
         });
         
-        map.current.addControl(geocoder, 'top-right');
+        // Only add geocoder on non-mobile devices
+        if (!isMobileDevice()) {
+          map.current.addControl(geocoder, 'top-right');
+        }
         
         map.current.on('move', () => {
           setMapCenter(map.current.getCenter());
@@ -251,7 +267,7 @@ function App() {
     if (startPoint) {
       const startEl = document.createElement('div');
       startEl.className = 'route-marker';
-      startEl.className = 'w-5 h-5 rounded-full bg-start-marker border border-white shadow-[0_2px_4px_rgba(0,0,0,0.3)] cursor-pointer';
+      startEl.className += ' w-5 h-5 rounded-full bg-start-marker border border-white shadow-[0_2px_4px_rgba(0,0,0,0.3)] cursor-pointer';
       
       new mapboxgl.Marker(startEl)
         .setLngLat([startPoint.lng, startPoint.lat])
@@ -262,7 +278,7 @@ function App() {
     if (endPoint) {
       const endEl = document.createElement('div');
       endEl.className = 'route-marker';
-      endEl.className = 'w-5 h-5 rounded-full bg-end-marker border border-white shadow-[0_2px_4px_rgba(0,0,0,0.3)] cursor-pointer';
+      endEl.className += ' w-5 h-5 rounded-full bg-end-marker border border-white shadow-[0_2px_4px_rgba(0,0,0,0.3)] cursor-pointer';
       
       new mapboxgl.Marker(endEl)
         .setLngLat([endPoint.lng, endPoint.lat])
