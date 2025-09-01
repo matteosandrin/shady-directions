@@ -1,13 +1,13 @@
 {
   "files": {
     "main.css": "/shady-directions/static/css/main.eece968c.css",
-    "main.js": "/shady-directions/static/js/main.95350a6a.js",
+    "main.js": "/shady-directions/static/js/main.538cb1ad.js",
     "index.html": "/shady-directions/index.html",
     "main.eece968c.css.map": "/shady-directions/static/css/main.eece968c.css.map",
-    "main.95350a6a.js.map": "/shady-directions/static/js/main.95350a6a.js.map"
+    "main.538cb1ad.js.map": "/shady-directions/static/js/main.538cb1ad.js.map"
   },
   "entrypoints": [
     "static/css/main.eece968c.css",
-    "static/js/main.95350a6a.js"
+    "static/js/main.538cb1ad.js"
   ]
 }
