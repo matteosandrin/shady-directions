@@ -4,58 +4,19 @@ const ErrorModal = ({ error, onClose }) => {
   if (!error) return null;
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      width: '100vw',
-      height: '100vh',
-      backgroundColor: 'rgba(0, 0, 0, 0.8)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000
-    }}>
-      <div style={{
-        background: 'rgba(0,0,0,0.8)',
-        color: 'white',
-        borderRadius: '8px',
-        padding: '24px',
-        maxWidth: '400px',
-        width: '90%',
-        textAlign: 'center'
-      }}>
-        <h3 style={{
-          margin: '0 0 16px 0',
-          color: '#d73027',
-          fontSize: '20px'
-        }}>
+    <div className="fixed top-0 left-0 w-screen h-screen bg-black/80 flex items-center justify-center z-[1000]">
+      <div className="bg-black/80 text-white rounded-lg p-6 max-w-md w-[90%] text-center">
+        <h3 className="m-0 mb-4 text-error-red text-xl">
           Route Calculation Failed
         </h3>
         
-        <p style={{
-          margin: '0 0 20px 0',
-          color: '#aaa',
-          fontSize: '14px',
-          lineHeight: '1.4'
-        }}>
+        <p className="m-0 mb-5 text-gray-400 text-sm leading-[1.4]">
           {error.message || 'Unable to calculate a walking route between the selected points. Please try different locations or check your connection.'}
         </p>
 
         <button
           onClick={onClose}
-          style={{
-            backgroundColor: '#dc3545',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            padding: '10px 20px',
-            fontSize: '14px',
-            cursor: 'pointer',
-            transition: 'background-color 0.2s'
-          }}
-          onMouseOver={(e) => e.target.style.backgroundColor = '#c82333'}
-          onMouseOut={(e) => e.target.style.backgroundColor = '#dc3545'}
+          className="bg-red-600 text-white border-none rounded px-5 py-2.5 text-sm cursor-pointer transition-colors hover:bg-red-700"
         >
           Close
         </button>

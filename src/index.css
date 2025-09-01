@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom styles for range input sliders */
+@layer utilities {
+  .range-slider::-webkit-slider-thumb {
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid #333;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  }
+  
+  .range-slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid #333;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  }
+  
+  .range-slider::-webkit-slider-track {
+    height: 8px;
+    border-radius: 4px;
+  }
+  
+  .range-slider::-moz-range-track {
+    height: 8px;
+    border-radius: 4px;
+    border: none;
+  }
+
+  /* Time slider gradient */
+  .time-slider {
+    background: linear-gradient(
+      to right,
+      #1a1a2e 0%,
+      #16213e 20%,
+      #ffa726 30%,
+      #ffcc02 40%,
+      #87ceeb 50%,
+      #ffcc02 60%,
+      #ffa726 70%,
+      #16213e 80%,
+      #1a1a2e 100%
+    );
+  }
+
+  .debug-indicator-shadow {
+    box-shadow: 0 0 10px #ff0000, 0 0 20px #ff0000, 0 0 30px #ff0000;
+  }
+}

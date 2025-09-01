@@ -88,112 +88,68 @@ const ControlPanel = ({
   };
 
   return (
-    <>
-      <style>
-        {`
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-        `}
-      </style>
-      <div style={{
-        position: 'absolute',
-        top: '20px',
-        left: '20px',
-        background: 'rgba(0,0,0,0.8)',
-        color: 'white',
-        padding: '15px',
-        borderRadius: '8px',
-        fontSize: '14px',
-        maxWidth: '220px'
-      }}>
-        <h3 style={{ margin: '0 0 10px 0' }}>Shady walking directions</h3>
-        <div style={{ fontSize: '11px', color: '#aaa' }}>
-          Made by <a style={{ color: '#aaa' }} href="https://sandr.in" target="_blank" rel="noreferrer">Matteo Sandrin</a>
+    <div className="absolute top-5 left-5 bg-black/80 text-white p-4 rounded-lg text-sm max-w-[220px]">
+        <h3 className="m-0 mb-2.5">Shady walking directions</h3>
+        <div className="text-xs text-gray-400">
+          Made by <a className="text-gray-400" href="https://sandr.in" target="_blank" rel="noreferrer">Matteo Sandrin</a>
         </div>
         <p>
           Plan a walking route that maximizes shade, based on the current sun position.
         </p>
-        <div style={{ marginTop: '15px', borderTop: '1px solid #555', paddingTop: '15px' }}>
-          <h4 style={{ margin: '0 0 10px 0', fontSize: '16px' }}>Route Planning</h4>
+        <div className="mt-4 border-t border-gray-600 pt-4">
+          <h4 className="m-0 mb-2.5 text-base">Route Planning</h4>
           <div>
             {solarPosition && (
-              <div style={{ fontSize: '11px', color: '#aaa' }}>
+              <div className="text-xs text-gray-400">
                 <div>Sun elevation: {(solarPosition.elevation * 180 / Math.PI).toFixed(1)}°</div>
                 <div>Sun azimuth: {(solarPosition.azimuth * 180 / Math.PI).toFixed(1)}°</div>
                 {solarPosition.elevation <= 0 && (
-                  <div style={{ color: '#ff6b6b', marginTop: '4px' }}>Sun is below horizon</div>
+                  <div className="text-red-400 mt-1">Sun is below horizon</div>
                 )}
               </div>
             )}
           </div>
-          <div style={{ marginTop: '10px' }}>
+          <div className="mt-2.5">
             {!startPoint && !endPoint && (
-              <div style={{ color: 'white', fontSize: '12px' }}>
+              <div className="text-white text-xs">
                 Click on map to set start point
               </div>
             )}
             
             {startPoint && !endPoint && (
-              <div style={{ color: 'white', fontSize: '12px'}}>
-                <div style={{ color: '#00ff00' }}>✓ Start point set</div>
-                <div style={{ marginTop: '5px' }}>Click on map to set end point</div>
+              <div className="text-white text-xs">
+                <div className="text-start-marker">✓ Start point set</div>
+                <div className="mt-1.5">Click on map to set end point</div>
               </div>
             )}
             
             {startPoint && endPoint && (
-              <div style={{ fontSize: '12px' }}>
-                <div style={{ color: '#00ff00' }}>✓ Start point set</div>
-                <div style={{ color: '#00ff00', marginTop: '5px' }}>✓ End point set</div>
+              <div className="text-xs">
+                <div className="text-start-marker">✓ Start point set</div>
+                <div className="text-start-marker mt-1.5">✓ End point set</div>
                 
                 {isProcessingRoute && (
-                  <div style={{ marginTop: '8px' }}>
-                    <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '6px' }}>
+                  <div className="mt-2">
+                    <div className="text-xs font-bold mb-1.5">
                       Calculating route...
                     </div>
                     {routeProgress && routeProgress.length > 0 && (
-                      <div style={{ fontSize: '11px' }}>
+                      <div className="text-xs">
                         {routeProgress.map((step, index) => (
-                          <div key={step.id} style={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            justifyContent: 'space-between',
-                            marginBottom: '3px',
-                            color: step.completed ? '#00ff00' : '#aaa'
-                          }}>
-                            <div style={{ display: 'flex', alignItems: 'center' }}>
-                              <div style={{
-                                width: '12px',
-                                height: '12px',
-                                marginRight: '6px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center'
-                              }}>
+                          <div key={step.id} className={`flex items-center justify-between mb-1 ${
+                            step.completed ? 'text-start-marker' : 'text-gray-400'
+                          }`}>
+                            <div className="flex items-center">
+                              <div className="w-3 h-3 mr-1.5 flex items-center justify-center">
                                 {step.completed ? '✓' : 
                                 (index === routeProgress.findIndex(s => !s.completed) ? 
-                                  <div style={{
-                                    width: '8px',
-                                    height: '8px',
-                                    border: '2px solid #555',
-                                    borderTop: '2px solid #fff',
-                                    borderRight: '2px solid #fff',
-                                    borderRadius: '50%',
-                                    animation: 'spin 1s linear infinite'
-                                  }}></div> : '○'
+                                  <div className="w-2 h-2 border-2 border-gray-600 border-t-white border-r-white rounded-full animate-spin"></div> : '○'
                                 )
                                 }
                               </div>
                               {step.label}
                             </div>
-                            <div style={{ 
-                              fontSize: '10px', 
-                              fontFamily: 'monospace',
-                              color: '#888',
-                              minWidth: '35px',
-                              textAlign: 'right'
-                            }}>
+                            <div className="text-xs font-mono text-gray-500 min-w-[35px] text-right">
                               {getStepTiming(step, index)}
                             </div>
                           </div>
@@ -204,33 +160,21 @@ const ControlPanel = ({
                 )}
                 
                 {routeData && !isProcessingRoute && (
-                  <div style={{ marginTop: '8px', fontSize: '11px', color: '#aaa'}}>
+                  <div className="mt-2 text-xs text-gray-400">
                     <div>Distance: {(routeData.distance / 1000).toFixed(2)} km</div>
                     <div>Duration: {Math.round(routeData.duration / 60)} min</div>
                     
                     {routeStats && (
-                      <div style={{ marginTop: '15px', borderTop: '1px solid #444', paddingTop: '15px' }}>
-                        <h4 style={{ margin: '0 0 10px 0', fontSize: '16px', color: 'white'}}>
+                      <div className="mt-4 border-t border-gray-700 pt-4">
+                        <h4 className="m-0 mb-2.5 text-base text-white">
                           Shade Analysis
                         </h4>
-                        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '2px' }}>
-                          <div style={{ 
-                            width: '12px', 
-                            height: '12px', 
-                            backgroundColor: '#8b5cf6', 
-                            marginRight: '6px',
-                            borderRadius: '2px'
-                          }}></div>
+                        <div className="flex items-center mb-0.5">
+                          <div className="w-3 h-3 bg-shaded-route mr-1.5 rounded-sm"></div>
                           <span>Shaded: {routeStats.shadedPercentage}% ({routeStats.shadedDistance}m)</span>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center' }}>
-                          <div style={{ 
-                            width: '12px', 
-                            height: '12px', 
-                            backgroundColor: '#fbbf24', 
-                            marginRight: '6px',
-                            borderRadius: '2px'
-                          }}></div>
+                        <div className="flex items-center">
+                          <div className="w-3 h-3 bg-sunny-route mr-1.5 rounded-sm"></div>
                           <span>Sunny: {routeStats.sunnyPercentage}% ({routeStats.sunnyDistance}m)</span>
                         </div>
                       </div>
@@ -243,25 +187,14 @@ const ControlPanel = ({
             {(startPoint || endPoint) && (
               <button
                 onClick={clearRoute}
-                style={{
-                  marginTop: '15px',
-                  padding: '8px 16px',
-                  backgroundColor: '#dc3545',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontSize: '12px',
-                  width: '100%'
-                }}
+                className="mt-4 px-4 py-2 bg-red-600 text-white border-none rounded cursor-pointer text-xs w-full hover:bg-red-700 transition-colors"
               >
                 Clear Route
               </button>
             )}
           </div>
         </div>
-      </div>
-    </>
+    </div>
   );
 };
 

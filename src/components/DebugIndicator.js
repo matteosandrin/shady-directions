@@ -3,7 +3,7 @@ import { isDebugMode, getDebugImage } from '../lib/debugUtils';
 
 function DebugIndicator() {
   const [showPanel, setShowPanel] = useState(false);
-  
+
   if (!isDebugMode()) {
     return null;
   }
@@ -16,136 +16,41 @@ function DebugIndicator() {
 
   return (
     <>
-      <div 
+      <div
         onClick={togglePanel}
-        style={{
-          position: 'fixed',
-          top: '0px',
-          right: '0px',
-          width: '58px',
-          height: '58px',
-          cursor: 'pointer',
-          zIndex: 1000,
-          userSelect: 'none',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}
-        title="Debug Mode Active - Click to toggle debug panel"
-      >
-        <div 
-          style={{
-            width: '16px',
-            height: '16px',
-            backgroundColor: '#ff0000',
-            borderRadius: '50%',
-            boxShadow: '0 0 10px #ff0000, 0 0 20px #ff0000, 0 0 30px #ff0000',
-            animation: 'pulse 2s infinite'
-          }}
-        />
+        className="fixed top-0 right-0 w-[58px] h-[58px] cursor-pointer z-[1000] select-none flex items-center justify-center"
+        title="Debug Mode Active - Click to toggle debug panel">
+        <div className="w-4 h-4 bg-red-500 rounded-full debug-indicator-shadow animate-pulse"/>
       </div>
-      <style>
-        {`
-          @keyframes pulse {
-            0% {
-              box-shadow: 0 0 10px #ff0000, 0 0 20px #ff0000, 0 0 30px #ff0000;
-            }
-            50% {
-              box-shadow: 0 0 15px #ff0000, 0 0 30px #ff0000, 0 0 45px #ff0000;
-            }
-            100% {
-              box-shadow: 0 0 10px #ff0000, 0 0 20px #ff0000, 0 0 30px #ff0000;
-            }
-          }
-        `}
-      </style>
-      
+
       {showPanel && (
-        <div 
-          style={{
-            position: 'fixed',
-            top: '10px',
-            right: '10px',
-            width: '320px',
-            maxHeight: '400px',
-            backgroundColor: 'rgba(0, 0, 0, 0.9)',
-            border: '1px solid #333',
-            borderRadius: '8px',
-            color: 'white',
-            fontSize: '12px',
-            fontFamily: 'monospace',
-            zIndex: 1000,
-            boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-            overflow: 'hidden'
-          }}
-        >
-          <div 
-            style={{
-              padding: '12px',
-              borderBottom: '1px solid #333',
-              backgroundColor: 'rgba(255, 107, 53, 0.1)',
-              fontWeight: 'bold',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}
-          >
+        <div className="fixed top-2.5 right-2.5 w-80 max-h-96 bg-black/90 border border-gray-700 rounded-lg text-white text-xs font-mono z-[1000] shadow-[0_4px_12px_rgba(0,0,0,0.5)] overflow-hidden">
+          <div className="p-3 border-b border-gray-700 bg-orange-500/10 font-bold flex justify-between items-center">
             Debug Panel
-            <button 
+            <button
               onClick={togglePanel}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'white',
-                cursor: 'pointer',
-                fontSize: '16px',
-                padding: '0',
-                width: '20px',
-                height: '20px'
-              }}
-            >
+              className="bg-transparent border-none text-white cursor-pointer text-base p-0 w-5 h-5">
               ×
             </button>
           </div>
-          <div 
-            style={{
-              padding: '12px',
-              maxHeight: '320px',
-              overflowY: 'auto'
-            }}
-          >
-            <div style={{ marginBottom: '8px' }}>
+          <div className="p-3 max-h-80 overflow-y-auto">
+            <div className="mb-2">
               <strong>User Agent:</strong> {navigator.userAgent}
             </div>
-            <div style={{ marginBottom: '8px' }}>
+            <div className="mb-2">
               <strong>Viewport:</strong> {window.innerWidth}×{window.innerHeight}
             </div>
             {debugImage && (
               <button
                 onClick={() => openBase64InNewTab(debugImage.split(',')[1], 'image/png')}
-                style={{ 
-                  background: 'none',
-                  border: 'none',
-                  color: '#4ade80',
-                  textDecoration: 'underline',
-                  cursor: 'pointer',
-                  padding: '0',
-                  font: 'inherit',
-                  lineHeight: '1.5'
-                }}
-              >
+                className="bg-transparent border-none text-green-400 underline cursor-pointer p-0 font-inherit leading-6">
                 View sampling points image
               </button>
             )}
             <div>
               <a
                 href="/"
-                style={{ 
-                  color: '#4ade80',
-                  textDecoration: 'underline',
-                  lineHeight: '1.5'
-                }}
-                >
+                className="text-green-400 underline leading-6">
                 Turn off debug mode
               </a>
             </div>

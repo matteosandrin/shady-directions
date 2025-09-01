@@ -251,15 +251,7 @@ function App() {
     if (startPoint) {
       const startEl = document.createElement('div');
       startEl.className = 'route-marker';
-      startEl.style.cssText = `
-        width: 20px;
-        height: 20px;
-        border-radius: 50%;
-        background-color: #00ff00;
-        border: 1px solid white;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        cursor: pointer;
-      `;
+      startEl.className = 'w-5 h-5 rounded-full bg-start-marker border border-white shadow-[0_2px_4px_rgba(0,0,0,0.3)] cursor-pointer';
       
       new mapboxgl.Marker(startEl)
         .setLngLat([startPoint.lng, startPoint.lat])
@@ -270,15 +262,7 @@ function App() {
     if (endPoint) {
       const endEl = document.createElement('div');
       endEl.className = 'route-marker';
-      endEl.style.cssText = `
-        width: 20px;
-        height: 20px;
-        border-radius: 50%;
-        background-color: #ff0000;
-        border: 1px solid white;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        cursor: pointer;
-      `;
+      endEl.className = 'w-5 h-5 rounded-full bg-end-marker border border-white shadow-[0_2px_4px_rgba(0,0,0,0.3)] cursor-pointer';
       
       new mapboxgl.Marker(endEl)
         .setLngLat([endPoint.lng, endPoint.lat])
@@ -345,8 +329,8 @@ function App() {
   }
 
   return (
-    <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
-      <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
+    <div className="w-screen h-screen relative">
+      <div ref={mapContainer} className="w-full h-full" />
 
       <ControlPanel
         solarPosition={solarPosition}

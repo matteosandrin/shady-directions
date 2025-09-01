@@ -1,14 +1,6 @@
-import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import React, { useMemo, useCallback } from 'react';
 
 const TimeSlider = ({ selectedDateTime, setSelectedDateTime }) => {
-  // Track screen size for responsive layout
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
-  
-  useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth <= 768);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
   
   // Parse selectedDateTime to get timeOfDay in minutes since midnight
   const timeOfDay = useMemo(() => {
@@ -40,49 +32,15 @@ const TimeSlider = ({ selectedDateTime, setSelectedDateTime }) => {
   }, [selectedDateTime, setSelectedDateTime]);
 
   return (
-    <div style={{
-      position: 'fixed',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      backgroundColor: 'rgba(255, 255, 255, 0.95)',
-      padding: '10px 20px',
-      borderTop: '1px solid #e0e0e0',
-      boxShadow: '0 -2px 10px rgba(0, 0, 0, 0.1)',
-      zIndex: 1000,
-      backdropFilter: 'blur(10px)'
-    }}>
-      <div style={{
-        display: 'flex',
-        flexDirection: isMobile ? 'column' : 'row',
-        alignItems: isMobile ? 'stretch' : 'center',
-        gap: isMobile ? '10px' : '20px',
-        maxWidth: '100%'
-      }}>
+    <div className="fixed bottom-0 left-0 right-0 bg-white/95 px-5 py-2.5 border-t border-gray-300 shadow-[0_-2px_10px_rgba(0,0,0,0.1)] z-[1000] backdrop-blur-[10px]">
+      <div className="flex md:flex-row flex-col md:items-center items-stretch md:gap-5 gap-2 max-w-full">
         {/* DateTime picker - shows first on mobile (above slider) */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: isMobile ? 'center' : 'flex-start',
-          gap: '15px',
-          minWidth: isMobile ? 'auto' : '200px',
-          order: isMobile ? 1 : 2
-        }}>
+        <div className="flex items-center justify-center md:justify-start gap-4 min-w-auto order-1 md:min-w-[200px] md:order-2">
           <input
             type="datetime-local"
             value={selectedDateTime}
             onChange={(e) => setSelectedDateTime(e.target.value)}
-            style={{
-              padding: '6px 8px',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-              backgroundColor: 'white',
-              color: '#333',
-              fontSize: '12px',
-              minWidth: isMobile ? 'auto' : '180px',
-              width: isMobile ? 'auto' : '180px'
-            }}
-          />
+            className="px-2 py-1.5 border border-gray-300 rounded bg-white text-gray-800 text-xs min-w-auto w-auto md:min-w-[180px] md:w-[180px]"/>
         </div>
         
         {/* Time slider - shows second on mobile (below datetime picker) */}
@@ -92,65 +50,8 @@ const TimeSlider = ({ selectedDateTime, setSelectedDateTime }) => {
           max="1439"
           value={timeOfDay}
           onChange={handleSliderChange}
-          style={{
-            flex: 1,
-            height: '8px',
-            borderRadius: '4px',
-            background: `linear-gradient(
-              to right,
-              #1a1a2e 0%,
-              #16213e 20%,
-              #ffa726 30%,
-              #ffcc02 40%,
-              #87ceeb 50%,
-              #ffcc02 60%,
-              #ffa726 70%,
-              #16213e 80%,
-              #1a1a2e 100%
-            )`,
-            outline: 'none',
-            cursor: 'pointer',
-            WebkitAppearance: 'none',
-            MozAppearance: 'none',
-            order: isMobile ? 2 : 1,
-            width: isMobile ? '100%' : 'auto'
-          }}
-        />
+          className="flex-1 h-2 rounded outline-none cursor-pointer range-slider time-slider order-2 w-full md:order-1 md:w-auto appearance-none"/>
       </div>
-      
-      <style jsx="true">{`
-        input[type="range"]::-webkit-slider-thumb {
-          appearance: none;
-          width: 20px;
-          height: 20px;
-          border-radius: 50%;
-          background: #fff;
-          border: 2px solid #333;
-          cursor: pointer;
-          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-        }
-        
-        input[type="range"]::-moz-range-thumb {
-          width: 20px;
-          height: 20px;
-          border-radius: 50%;
-          background: #fff;
-          border: 2px solid #333;
-          cursor: pointer;
-          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-        }
-        
-        input[type="range"]::-webkit-slider-track {
-          height: 8px;
-          border-radius: 4px;
-        }
-        
-        input[type="range"]::-moz-range-track {
-          height: 8px;
-          border-radius: 4px;
-          border: none;
-        }
-      `}</style>
     </div>
   );
 };
