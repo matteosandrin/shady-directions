@@ -380,7 +380,7 @@ function astar(graph, startIdx, goalIdx, opts = {}) {
   });
 
   // Find path
-  const foundPath = pathFinder.find(startIdx, goalIdx);
+  const foundPath = pathFinder.find(startIdx, goalIdx).reverse();
 
   if (!foundPath || foundPath.length === 0) {
     return { path: [], time_s: Infinity, edges: [], distance: 0 };

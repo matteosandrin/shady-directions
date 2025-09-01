@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
+import { exportRouteAsGPX } from '../lib/gpxExport';
+import { debugError } from '../lib/debugUtils';
 
 const ControlPanel = ({
   solarPosition,
@@ -85,6 +87,15 @@ const ControlPanel = ({
       return `${(elapsed / 1000).toFixed(1)}s`;
     }
     return '';
+  };
+
+  const handleGPXExport = () => {
+    try {
+      exportRouteAsGPX(routeData, routeStats);
+    } catch (error) {
+      debugError('Failed to export GPX:', error);
+      alert('Failed to export route as GPX file');
+    }
   };
 
   return (
@@ -183,12 +194,24 @@ const ControlPanel = ({
             )}
             
             {(startPoint || endPoint) && (
-              <button
-                onClick={clearRoute}
-                className="mt-4 px-4 py-2 bg-red-600 text-white border-none rounded cursor-pointer text-xs w-full hover:bg-red-700 transition-colors"
-              >
-                Clear Route
-              </button>
+              <div className="mt-4 flex gap-2">
+                <button
+                  onClick={clearRoute}
+                  className={`px-4 py-2 bg-red-600 text-white border-none rounded cursor-pointer text-xs hover:bg-red-700 transition-colors ${
+                    routeData && !isProcessingRoute ? 'flex-1' : 'w-full'
+                  }`}
+                >
+                  Clear Route
+                </button>
+                {routeData && !isProcessingRoute && (
+                  <button
+                    onClick={handleGPXExport}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white border-none rounded cursor-pointer text-xs hover:bg-blue-700 transition-colors"
+                  >
+                    Export GPX
+                  </button>
+                )}
+              </div>
             )}
           </div>
         </div>
