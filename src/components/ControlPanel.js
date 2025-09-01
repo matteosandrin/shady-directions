@@ -112,15 +112,15 @@ const ControlPanel = ({
           </div>
           <div className="mt-4">
             {!startPoint && !endPoint && (
-              <div className="text-white text-xs">
-                Click on map to set start point
+              <div className="text-white text-xs font-bold">
+                ↓ Click on map to set start point
               </div>
             )}
             
             {startPoint && !endPoint && !routeData && (
               <div className="text-white text-xs">
                 <div className="text-start-marker">✓ Start point set</div>
-                <div className="mt-1.5">Click on map to set end point</div>
+                <div className="mt-1.5 font-bold">↓ Click on map to set end point</div>
               </div>
             )}
             
