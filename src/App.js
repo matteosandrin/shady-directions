@@ -219,7 +219,6 @@ function App() {
         style: 'mapbox://styles/mapbox/light-v10',
         center: [manhattanCenter.lng, manhattanCenter.lat],
         zoom: 15,
-        minZoom: 15,
         pitch: 0,
         bearing: 0
       });
