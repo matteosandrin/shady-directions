@@ -271,9 +271,11 @@ function App() {
         map.current.on('move', () => {
           setMapCenter(map.current.getCenter());
         });
+
+        handleGeolocate();
       });
     }
-  }, [error]);
+  }, [error, handleGeolocate]);
 
   // Add click handler in a separate effect
   useEffect(() => {
