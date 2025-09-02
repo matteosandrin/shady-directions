@@ -1,7 +1,7 @@
 {
   "name": "shade-map-client",
   "version": "0.1.0",
-  "homepage": "https://matteosandrin.github.io/shady-directions/",
+  "homepage": "https://shadymap.com",
   "private": true,
   "dependencies": {
     "@mapbox/mapbox-gl-geocoder": "^5.1.2",
