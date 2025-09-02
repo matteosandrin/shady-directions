@@ -5,6 +5,13 @@ import { debugLog, debugWarn, debugError, setDebugImage, isDebugMode } from './d
 import path from 'ngraph.path';
 import createGraph from 'ngraph.graph';
 
+// Route type enum
+export const ROUTE_TYPE = {
+  SHADY: 'shadyPath', 
+  SUNNY: 'sunnyPath',
+  FAST: 'fastPath',
+};
+
 // Progress status enum
 export const ROUTE_PROGRESS_STATUS = {
   GETTING_WAYS_DATA: 'GETTING_WAYS_DATA',
@@ -71,8 +78,8 @@ function getBboxForPoints(start, end) {
   };
 }
 
-export async function findWalkingRoute(start, end, date, options = {}) {
-  const { onProgress, ...routingOptions } = options;
+export async function findWalkingRoutes(start, end, date, options = {}) {
+  const { onProgress } = options;
   
   const bounds = getBboxForPoints(start, end);
   const waysData = await getWaysData(bounds, onProgress);
@@ -80,16 +87,16 @@ export async function findWalkingRoute(start, end, date, options = {}) {
   const graph = await buildGraph(waysData, shadeData, onProgress);
   
   if (onProgress) onProgress(ROUTE_PROGRESS_STATUS.FINDING_ROUTE);
-  const route = findRoute(graph, {
+  const routes = findRoutes(graph, {
     latitude: start.lat,
     longitude: start.lng
   }, {
     latitude: end.lat,
     longitude: end.lng
-  }, routingOptions);
+  });
   
   if (onProgress) onProgress(ROUTE_PROGRESS_STATUS.ROUTE_COMPLETED);
-  return route;
+  return routes;
 };
 
 export async function buildGraph(waysData, shadeData = null, onProgress) {
@@ -335,7 +342,7 @@ export async function buildGraph(waysData, shadeData = null, onProgress) {
 function astar(graph, startIdx, goalIdx, opts = {}) {
   const {
     walkSpeed = 1.4,   // m/s (~5.0 km/h)
-    shadePreference = 0.0, // 0 = no preference, 1 = strong shade preference
+    shadePreference = 0.0, // 0 = no preference, 1 = strong shade preference, -1 = strong sun preference
     pedestrianPathPreference = 0.2 // 0 = no preference, 1 = strong pedestrian path preference
   } = opts;
 
@@ -360,14 +367,17 @@ function astar(graph, startIdx, goalIdx, opts = {}) {
 
   // Custom distance function that calculates weights based on preferences
   const customDistance = (fromNode, toNode, link) => {
-    const shade = link.data.shade ?? 0; // 0 = no shade, 1 = full shade
+    const shadeValue = link.data.shade ?? 0; // 0 = no shade, 1 = full shade
     
     // Pedestrian-only path preference (lower cost multiplier = higher preference)
     const isPedestrianOnly = ['footway', 'path', 'pedestrian', 'steps'].includes(link.data.highway);
     const pathTypeMultiplier = isPedestrianOnly ? (1 - pedestrianPathPreference) : 1.0;
+
+    const edgeSunShadeScore = (shadeValue - 0.5) * 2;
+    const edgeShadePreference = shadePreference * edgeSunShadeScore;
+    const shadeMultiplier = 1.0 - edgeShadePreference;
     
     const baseTime = link.data.length / walkSpeed;
-    const shadeMultiplier = 1 + shadePreference * (1 - shade);
     const edgeTime = baseTime * pathTypeMultiplier * shadeMultiplier;
     
     return edgeTime;
@@ -454,7 +464,7 @@ function nearestNode(graph, lat, lon) {
 }
 
 // Main route finding function
-export function findRoute(graph, start, goal, options = {}) {
+export function findRoutes(graph, start, goal) {
   const startTime = performance.now();
   debugLog(`Finding route from (${start.latitude}, ${start.longitude}) to (${goal.latitude}, ${goal.longitude})`);
 
@@ -465,28 +475,40 @@ export function findRoute(graph, start, goal, options = {}) {
     throw new Error("Could not find nearby nodes for start or goal coordinates");
   }
 
-  const result = astar(graph, startIdx, goalIdx, options);
+  const scenarios = {
+    [ROUTE_TYPE.SHADY]: { shadePreference: 0.5 },
+    [ROUTE_TYPE.SUNNY]: { shadePreference: -0.5 },
+    [ROUTE_TYPE.FAST]: { shadePreference: 0.0 },
+  };
+  const result = {};
 
-  if (result.path.length === 0) {
-    debugWarn("No route found between the specified points");
-    throw new Error("No route found between the specified points");
+  for (const [name, scenarioOpts] of Object.entries(scenarios)) {
+
+    const scenarioResult = astar(graph, startIdx, goalIdx, scenarioOpts);
+
+    if (scenarioResult.path.length === 0) {
+      debugWarn("No route found between the specified points");
+      throw new Error("No route found between the specified points");
+    }
+
+    // Convert path indices to coordinates (GeoJSON format: [lon, lat])
+    const coordinates = scenarioResult.path.map(idx => {
+      const [lat, lon] = graph.coords[idx];
+      return [lon, lat]; // GeoJSON expects [longitude, latitude]
+    });
+
+    result[name] = {
+      coordinates,
+      distance: scenarioResult.distance,
+      duration: scenarioResult.time_s,
+      path: scenarioResult.path,
+      edges: scenarioResult.edges,
+      shade: scenarioResult.shade,
+    };
   }
 
-  // Convert path indices to coordinates (GeoJSON format: [lon, lat])
-  const coordinates = result.path.map(idx => {
-    const [lat, lon] = graph.coords[idx];
-    return [lon, lat]; // GeoJSON expects [longitude, latitude]
-  });
-
   const endTime = performance.now() - startTime;
-  debugLog(`Route found: ${result.path.length} nodes, ${result.distance.toFixed(0)}m, ${result.time_s.toFixed(1)}s`);
+  debugLog(`Route found`);
   debugLog(`Route computation time: ${endTime.toFixed(1)} ms`);
-  return {
-    coordinates,
-    distance: result.distance,
-    duration: result.time_s,
-    path: result.path,
-    edges: result.edges,
-    shade: result.shade,
-  };
+  return result
 }

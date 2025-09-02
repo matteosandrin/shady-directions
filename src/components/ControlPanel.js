@@ -1,12 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
 import { exportRouteAsGPX } from '../lib/gpxExport';
 import { debugError } from '../lib/debugUtils';
+import { ROUTE_TYPE } from '../lib/routing';
 
 const ControlPanel = ({
   solarPosition,
   startPoint,
   endPoint,
   routeData,
+  currentRoute,
+  selectedRouteType,
+  onRouteTypeChange,
   isProcessingRoute,
   clearRoute,
   routeStats,
@@ -92,10 +96,19 @@ const ControlPanel = ({
 
   const handleGPXExport = () => {
     try {
-      exportRouteAsGPX(routeData, routeStats);
+      exportRouteAsGPX(currentRoute, routeStats);
     } catch (error) {
       debugError('Failed to export GPX:', error);
       alert('Failed to export route as GPX file');
+    }
+  };
+
+  const getRouteTypeLabel = (type) => {
+    switch (type) {
+      case ROUTE_TYPE.SHADY: return 'Shady';
+      case ROUTE_TYPE.SUNNY: return 'Sunny';
+      case ROUTE_TYPE.FAST: return 'Fast';
+      default: return 'Unknown';
     }
   };
 
@@ -122,7 +135,7 @@ const ControlPanel = ({
         </div>
         <div className="mt-4">
           <div>
-            {solarPosition && (!routeData || routeData.length === 0) && (
+            {solarPosition && (!currentRoute) && (
               <div className="text-xs text-gray-400">
                 <div>Sun elevation: {(solarPosition.elevation * 180 / Math.PI).toFixed(1)}°</div>
                 <div>Sun azimuth: {(solarPosition.azimuth * 180 / Math.PI).toFixed(1)}°</div>
@@ -148,7 +161,7 @@ const ControlPanel = ({
             
             {startPoint && endPoint && (
               <div className="text-xs">
-                { !routeData && <div>
+                { !currentRoute && <div>
                   <div className="text-start-marker">✓ Start point set</div>
                   <div className="text-start-marker mt-1.5">✓ End point set</div>
                 </div>}
@@ -185,18 +198,45 @@ const ControlPanel = ({
                 )}
                 
                 {routeData && !isProcessingRoute && (
-                  <div className="text-xs text-gray-400">
-                    <div>Total distance: {(routeData.distance / 1000).toFixed(2)} km ({Math.round(routeData.duration / 60)} min)</div>                
-                    {routeStats && (
-                      <div className="mt-2">
-                        <div className="flex items-center mb-0.5">
-                          <div className="w-3 h-3 bg-shaded-route mr-1.5 rounded-sm"></div>
-                          <span>Shaded: {routeStats.shadedPercentage}% ({routeStats.shadedDistance}m)</span>
-                        </div>
-                        <div className="flex items-center">
-                          <div className="w-3 h-3 bg-sunny-route mr-1.5 rounded-sm"></div>
-                          <span>Sunny: {routeStats.sunnyPercentage}% ({routeStats.sunnyDistance}m)</span>
-                        </div>
+                  <div>
+                    {/* Route type selector */}
+                    <div className="mb-3">
+                      <div className="text-xs text-gray-400 mb-1">Route type:</div>
+                      <div className="grid grid-cols-3 gap-1">
+                        {Object.values(ROUTE_TYPE).map((type) => {
+                          const route = routeData[type];
+                          if (!route) return null;
+                          return (
+                            <button
+                              key={type}
+                              onClick={() => onRouteTypeChange(type)}
+                              className={`px-2 py-1 text-xs rounded border transition-colors ${
+                                selectedRouteType === type
+                                  ? 'bg-blue-600 text-white border-blue-600'
+                                  : 'bg-gray-700 text-gray-300 border-gray-600 hover:bg-gray-600'
+                              }`}
+                            >
+                              {getRouteTypeLabel(type)}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    {currentRoute && (
+                      <div className="text-xs text-gray-400">
+                        <div>Total distance: {(currentRoute.distance / 1000).toFixed(2)} km ({Math.round(currentRoute.duration / 60)} min)</div>                
+                        {routeStats && (
+                          <div className="mt-2">
+                            <div className="flex items-center mb-0.5">
+                              <div className="w-3 h-3 bg-shaded-route mr-1.5 rounded-sm"></div>
+                              <span>Shaded: {routeStats.shadedPercentage}% ({routeStats.shadedDistance}m)</span>
+                            </div>
+                            <div className="flex items-center">
+                              <div className="w-3 h-3 bg-sunny-route mr-1.5 rounded-sm"></div>
+                              <span>Sunny: {routeStats.sunnyPercentage}% ({routeStats.sunnyDistance}m)</span>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -209,12 +249,12 @@ const ControlPanel = ({
                 <button
                   onClick={clearRoute}
                   className={`px-4 py-2 bg-red-600 text-white border-none rounded cursor-pointer text-xs hover:bg-red-700 transition-colors ${
-                    routeData && !isProcessingRoute ? 'flex-1' : 'w-full'
+                    currentRoute && !isProcessingRoute ? 'flex-1' : 'w-full'
                   }`}
                 >
                   Clear Route
                 </button>
-                {routeData && !isProcessingRoute && (
+                {currentRoute && !isProcessingRoute && (
                   <button
                     onClick={handleGPXExport}
                     className="flex-1 px-4 py-2 bg-blue-600 text-white border-none rounded cursor-pointer text-xs hover:bg-blue-700 transition-colors"

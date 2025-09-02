@@ -1,7 +1,7 @@
 import { BuildingShadows } from './lib/shadowShader';
 import { formatDateTime, parseDateTime } from './lib/timeFormat';
 import { updateRouteShade } from './lib/routeAnalysis';
-import { findWalkingRoute, ROUTE_PROGRESS_STATUS, getProgressMessage } from './lib/routing';
+import { findWalkingRoutes, ROUTE_TYPE, ROUTE_PROGRESS_STATUS, getProgressMessage } from './lib/routing';
 import { debugLog, debugError, isDebugMode } from './lib/debugUtils';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import ControlPanel from './components/ControlPanel';
@@ -44,10 +44,17 @@ function App() {
   const [mapCenter, setMapCenter] = useState(manhattanCenter);
   const [startPoint, setStartPoint] = useState(null);
   const [endPoint, setEndPoint] = useState(null);
-  const [route, setRoute] = useState(null);
+  const [routeData, setRouteData] = useState(null);
+  const [selectedRouteType, setSelectedRouteType] = useState(ROUTE_TYPE.SHADY);
   const [isLoadingRoute, setIsLoadingRoute] = useState(false);
   const [routeStats, setRouteStats] = useState(null);
   const [routeProgress, setRouteProgress] = useState([]);
+
+  // Get the currently selected route from the routeData
+  const currentRoute = useMemo(() => {
+    if (!routeData || !routeData[selectedRouteType]) return null;
+    return routeData[selectedRouteType];
+  }, [routeData, selectedRouteType]);
 
   const solarPosition = useMemo(() => {
     const date = parseDateTime(selectedDateTime);
@@ -101,14 +108,13 @@ function App() {
     try {
       const date = parseDateTime(selectedDateTime);
       const options = {
-        shadePreference: 0.5, // 0 = no preference, 1 = strong shade preference
         onProgress
       }
-      const routeData = await findWalkingRoute(start, end, date, options);
-      setRoute(routeData);
+      const routes = await findWalkingRoutes(start, end, date, options);
+      setRouteData(routes);
     } catch (error) {
       debugError('Error fetching route:', error);
-      setRoute(null);
+      setRouteData(null);
       setRouteError(error);
     } finally {
       setIsLoadingRoute(false);
@@ -130,15 +136,16 @@ function App() {
       debugLog('Resetting points');
       setStartPoint({ lng, lat });
       setEndPoint(null);
-      setRoute(null);
+      setRouteData(null);
     }
   }, [startPoint, endPoint, fetchRoute]);
 
   const clearRoute = useCallback(() => {
     setStartPoint(null);
     setEndPoint(null);
-    setRoute(null);
+    setRouteData(null);
     setRouteStats(null);
+    setSelectedRouteType(ROUTE_TYPE.SHADY);
     setRouteError(null);
   }, []);
 
@@ -284,14 +291,14 @@ function App() {
   useEffect(() => {
     if (shadowLayer.current) {
       shadowLayer.current.updateDate(parseDateTime(selectedDateTime));
-      if (route) {
+      if (currentRoute) {
         setTimeout(() => {
-          const stats = updateRouteShade(route, shadowLayer.current, map.current);
+          const stats = updateRouteShade(currentRoute, shadowLayer.current, map.current);
           setRouteStats(stats);
         }, 100);
       }
     }
-  }, [selectedDateTime, route]);
+  }, [selectedDateTime, currentRoute]);
 
   // Handle viewport resize to redraw shadow shader
   useEffect(() => {
@@ -365,8 +372,8 @@ function App() {
       }
     });
 
-    if (route) {
-      debugLog('Adding route to map:', route);
+    if (currentRoute) {
+      debugLog('Adding route to map:', currentRoute);
       map.current.addSource(routeSourceId, {
         type: 'geojson',
         data: {
@@ -374,7 +381,7 @@ function App() {
           properties: {},
           geometry: {
             type: 'LineString',
-            coordinates: route.coordinates
+            coordinates: currentRoute.coordinates
           }
         }
       });
@@ -392,10 +399,10 @@ function App() {
           'line-opacity': 0.75
         }
       }, '3d-buildings');
-      const stats = updateRouteShade(route, shadowLayer.current, map.current);
+      const stats = updateRouteShade(currentRoute, shadowLayer.current, map.current);
       setRouteStats(stats);
     }
-  }, [route]);
+  }, [currentRoute]);
 
   if (error) {
     return <ErrorScreen error={error} />;
@@ -409,7 +416,10 @@ function App() {
         solarPosition={solarPosition}
         startPoint={startPoint}
         endPoint={endPoint}
-        routeData={route}
+        routeData={routeData}
+        currentRoute={currentRoute}
+        selectedRouteType={selectedRouteType}
+        onRouteTypeChange={setSelectedRouteType}
         isProcessingRoute={isLoadingRoute}
         clearRoute={clearRoute}
         routeStats={routeStats}
