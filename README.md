@@ -1,6 +1,4 @@
-# Shady directions
-
-https://matteosandrin.github.io/shady-directions
+# Shady directions ([shadymap.com](https://shadymap.com))
 
 An app for shade-aware walking directions.
 
