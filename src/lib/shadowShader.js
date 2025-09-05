@@ -4,6 +4,7 @@
 import SunCalc from 'suncalc';
 import mapboxgl from 'mapbox-gl';
 import { distance } from '@turf/distance';
+import { debugLog } from './debugUtils';
 
 export class BuildingShadows {
   constructor() {
@@ -210,161 +211,253 @@ export const SHADE_TYPE = {
   IMAGE: 'IMAGE'
 };
 
-// Function to calculate shade map for arbitrary bounding box
-export function generateShadeMap(bounds, date = new Date(), output) {
+// Helper function to calculate tile grid for tiled shade map generation
+function calculateTileGrid(bounds, tileSize = 512, zoom = 15) {
+  const centerLng = (bounds.east + bounds.west) / 2;
+  const centerLat = (bounds.north + bounds.south) / 2;
+  const metersPerPixel = 40075017 * Math.cos(centerLat * Math.PI / 180) / Math.pow(2, zoom + 8);
+  
+  const boundWidthMeters = distance(
+    [bounds.west, centerLat],
+    [bounds.east, centerLat],
+    { units: 'meters' }
+  );
+  const boundHeightMeters = distance(
+    [centerLng, bounds.north],
+    [centerLng, bounds.south],
+    { units: 'meters' }
+  );
+  
+  // Calculate total dimensions
+  const devicePixelRatio = window.devicePixelRatio || 1;
+  const totalWidth = Math.ceil(boundWidthMeters / metersPerPixel * devicePixelRatio);
+  const totalHeight = Math.ceil(boundHeightMeters / metersPerPixel * devicePixelRatio);
+  
+  // Calculate number of tiles needed
+  const tilesX = Math.ceil(totalWidth / tileSize);
+  const tilesY = Math.ceil(totalHeight / tileSize);
+  
+  // Calculate actual tile dimensions in meters
+  const tileWidthMeters = tileSize * metersPerPixel / devicePixelRatio;
+  const tileHeightMeters = tileSize * metersPerPixel / devicePixelRatio;
+  
+  return {
+    tilesX,
+    tilesY,
+    tileSize,
+    tileWidthMeters,
+    tileHeightMeters,
+    totalWidth,
+    totalHeight,
+    metersPerPixel
+  };
+}
+
+// Helper function to capture a single tile
+function captureTile(tileX, tileY, grid, bounds, date, zoom = 15) {
   return new Promise((resolve, reject) => {
+    const { tileWidthMeters, tileHeightMeters, tileSize } = grid;
+
+    debugLog(`Capturing tile (${tileX}, ${tileY})...`);
+    
+    // Calculate tile bounds
+    const lngPerMeter = 1 / (111320 * Math.cos(bounds.north * Math.PI / 180));
+    const latPerMeter = 1 / 110540;
+    
+    const tileCenterLng = bounds.west + (tileX + 0.5) * tileWidthMeters * lngPerMeter;
+    const tileCenterLat = bounds.north - (tileY + 0.5) * tileHeightMeters * latPerMeter;
+    
+    // Create container for this tile
+    const container = document.createElement('div');
+    container.style.cssText = `
+      position: fixed;
+      top: -${tileSize}px;
+      left: -${tileSize}px;
+      width: ${tileSize}px;
+      height: ${tileSize}px;
+      overflow: visible;
+      z-index: -1000;
+      pointer-events: none;
+    `;
+    document.body.appendChild(container);
+    
+    const map = new mapboxgl.Map({
+      container: container,
+      style: {
+        version: 8,
+        sources: {
+          'composite': {
+            type: 'vector',
+            url: 'mapbox://mapbox.mapbox-streets-v8'
+          }
+        },
+        layers: [
+          {
+            'id': 'background',
+            'type': 'background',
+            'paint': {
+              'background-color': '#ffffff'
+            }
+          }
+        ]
+      },
+      center: [tileCenterLng, tileCenterLat],
+      zoom: zoom,
+      pitch: 0,
+      bearing: 0,
+      preserveDrawingBuffer: true,
+      interactive: false,
+      attributionControl: false
+    });
+    
+    map.on('load', () => {
+      map.addLayer({
+        'id': '3d-buildings',
+        'source': 'composite',
+        'source-layer': 'building',
+        'type': 'fill-extrusion',
+        'filter': [
+          'all',
+          ['>', ['get', 'height'], 0],
+          ['!=', ['get', 'underground'], 'true']
+        ],
+        'paint': {
+          'fill-extrusion-color': 'transparent',
+          'fill-extrusion-height': ["number", ["get", "height"], 5],
+          'fill-extrusion-base': ["number", ["get", "min_height"], 0],
+          'fill-extrusion-opacity': 0
+        }
+      });
+      
+      setTimeout(() => {
+        const shadowLayer = new BuildingShadows();
+        shadowLayer.updateDate(date);
+        map.addLayer(shadowLayer);
+        
+        setTimeout(() => {
+          const canvas = map.getCanvas();
+          const gl = map.painter.context.gl;
+          const width = canvas.width;
+          const height = canvas.height;
+          
+          const pixels = new Uint8Array(width * height * 4);
+          gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+          
+          const flippedPixels = new Uint8Array(width * height * 4);
+          for (let y = 0; y < height; y++) {
+            const srcStart = y * width * 4;
+            const destStart = (height - y - 1) * width * 4;
+            flippedPixels.set(pixels.subarray(srcStart, srcStart + width * 4), destStart);
+          }
+          
+          // Clean up
+          if (map) map.remove();
+          if (container && container.parentNode) document.body.removeChild(container);
+          
+          resolve({
+            pixels: flippedPixels,
+            width,
+            height,
+            tileX,
+            tileY,
+            bounds: {
+              west: bounds.west + tileX * tileWidthMeters * lngPerMeter,
+              north: bounds.north - tileY * tileHeightMeters * latPerMeter,
+              east: bounds.west + (tileX + 1) * tileWidthMeters * lngPerMeter,
+              south: bounds.north - (tileY + 1) * tileHeightMeters * latPerMeter,
+            }
+          });
+        }, 100);
+      }, 500);
+    });
+    
+    map.on('error', (error) => {
+      if (map) map.remove();
+      if (container && container.parentNode) document.body.removeChild(container);
+      reject(error);
+    });
+  });
+}
+
+// Helper function to stitch tiles together
+function stitchTiles(tiles, grid) {
+  
+  const { tilesX, tilesY } = grid;
+  const finalWidth = tilesX * tiles[0].width;
+  const finalHeight = tilesY * tiles[0].height;
+  const tileSize = tiles[0].width; // Assuming square tiles
+
+  const finalPixels = new Uint8Array(finalWidth * finalHeight * 4);
+  finalPixels.fill(255); // Fill with white background
+  
+  for (const tile of tiles) {
+    const { pixels, width, height, tileX, tileY } = tile;
+    
+    const startX = tileX * tileSize;
+    const startY = tileY * tileSize;
+    
+    // Copy pixels from this tile to the final image
+    for (let y = 0; y < height && startY + y < finalHeight; y++) {
+      for (let x = 0; x < width && startX + x < finalWidth; x++) {
+        const srcIdx = (y * width + x) * 4;
+        const destIdx = ((startY + y) * finalWidth + (startX + x)) * 4;
+        
+        finalPixels[destIdx] = pixels[srcIdx];         // R
+        finalPixels[destIdx + 1] = pixels[srcIdx + 1]; // G
+        finalPixels[destIdx + 2] = pixels[srcIdx + 2]; // B
+        finalPixels[destIdx + 3] = pixels[srcIdx + 3]; // A
+      }
+    }
+  }
+  
+  return {
+    pixels: finalPixels,
+    width: finalWidth,
+    height: finalHeight
+  };
+}
+
+// Function to calculate shade map for arbitrary bounding box using tiled approach
+export function generateShadeMap(bounds, date = new Date(), output, tileSize = 512) {
+  return new Promise(async (resolve, reject) => {
     try {
-      // Calculate center and zoom level for the bounding box at zoom 15
+      const zoom = 15;
       const centerLng = (bounds.west + bounds.east) / 2;
       const centerLat = (bounds.north + bounds.south) / 2;
-      const zoom = 15;
       
-      // Calculate map dimensions to fit bounding box exactly at zoom 15
-      // Account for device pixel ratio to ensure proper resolution
-      const devicePixelRatio = window.devicePixelRatio || 1;
-      const metersPerPixel = 40075017 * Math.cos(centerLat * Math.PI / 180) / Math.pow(2, zoom + 8);
-      const boundWidthMeters = distance(
-        [bounds.west, centerLat],
-        [bounds.east, centerLat],
-        { units: 'meters' }
-      );
-      const boundHeightMeters = distance(
-        [centerLng, bounds.north],
-        [centerLng, bounds.south],
-        { units: 'meters' }
-      );
+      // For IMAGE output, use tiled approach
+      const grid = calculateTileGrid(bounds, tileSize, zoom);
+      debugLog('Tile grid:', grid);
+      const tiles = [];
       
-      // Calculate CSS pixel dimensions
-      const cssWidth = Math.ceil(boundWidthMeters / metersPerPixel);
-      const cssHeight = Math.ceil(boundHeightMeters / metersPerPixel);
-      
-      // Scale to device pixels for high-resolution rendering
-      const mapWidth = Math.floor(cssWidth * devicePixelRatio);
-      const mapHeight = Math.floor(cssHeight * devicePixelRatio);
-      
-      // Create outer container that can expand beyond body constraints
-      const container = document.createElement('div');
-      container.style.cssText = `
-        position: fixed;
-        top: -9999px;
-        left: -9999px;
-        width: ${mapWidth}px;
-        height: ${mapHeight}px;
-        overflow: visible;
-        z-index: -1000;
-        pointer-events: none;
-      `;
-      document.body.appendChild(container);
-      
-      // Create headless Mapbox map with white background
-      const map = new mapboxgl.Map({
-        container: container,
-        style: {
-          version: 8,
-          sources: {
-            'composite': {
-              type: 'vector',
-              url: 'mapbox://mapbox.mapbox-streets-v8'
-            }
-          },
-          layers: [
-            {
-              'id': 'background',
-              'type': 'background',
-              'paint': {
-                'background-color': '#ffffff'
-              }
-            }
-          ]
-        },
-        center: [centerLng, centerLat],
-        zoom: zoom,
-        pitch: 0,
-        bearing: 0,
-        preserveDrawingBuffer: true,
-        interactive: false,
-        attributionControl: false
-      });
-      
-      map.on('load', () => {
-        // Add invisible 3D buildings layer (for shadow calculation only)
-        map.addLayer({
-          'id': '3d-buildings',
-          'source': 'composite',
-          'source-layer': 'building',
-          'type': 'fill-extrusion',
-          'filter': [
-            'all',
-            ['>', ['get', 'height'], 0],
-            ['!=', ['get', 'underground'], 'true']
-          ],
-          'paint': {
-            'fill-extrusion-color': 'transparent',
-            'fill-extrusion-height': ["number", ["get", "height"], 5],
-            'fill-extrusion-base': ["number", ["get", "min_height"], 0],
-            'fill-extrusion-opacity': 0
+      // Capture all tiles
+      for (let tileY = 0; tileY < grid.tilesY; tileY++) {
+        for (let tileX = 0; tileX < grid.tilesX; tileX++) {
+          try {
+            const tileData = await captureTile(tileX, tileY, grid, bounds, date, zoom);
+            tiles.push(tileData);
+          } catch (error) {
+            console.error(`Failed to capture tile ${tileX},${tileY}:`, error);
+            // Continue with other tiles
           }
-        });
-        
-        // Wait for tiles to load
-        setTimeout(() => {
-          // Create and add shadow layer
-          const shadowLayer = new BuildingShadows();
-          shadowLayer.updateDate(date);
-          map.addLayer(shadowLayer);
-          
-          // Wait for shadows to render
-          setTimeout(() => {
-            const result = {
-              bounds,
-              center: [centerLng, centerLat],
-              zoom,
-              size: { width: mapWidth, height: mapHeight },
-              date
-            };
-            if (output === SHADE_TYPE.IMAGE) {
-              // Get pixel data directly from WebGL canvas
-              const canvas = map.getCanvas();
-              const gl = map.painter.context.gl;
-              const width = canvas.width;
-              const height = canvas.height;
-              
-              // Read pixels from WebGL context
-              const pixels = new Uint8Array(width * height * 4);
-              gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-
-              const flippedPixels = new Uint8Array(width * height * 4);
-              // Flip the pixel data vertically
-              for (let y = 0; y < height; y++) {
-                const srcStart = y * width * 4;
-                const destStart = (height - y - 1) * width * 4;
-                flippedPixels.set(pixels.subarray(srcStart, srcStart + width * 4), destStart);
-              }
-              
-              result.image = {
-                pixels: flippedPixels,
-                width,
-                height
-              };
-              
-              if (map) map.remove();
-              if (container && container.parentNode) document.body.removeChild(container);
-              
-            } else if (output === SHADE_TYPE.MAP) {
-              result.map = map;
-              result.shadowLayer = shadowLayer;
-            }
-            result.shadeType = output;
-            resolve(result);
-          }, 100);
-        }, 500);
-      });
+        }
+      }
       
-      map.on('error', (error) => {
-        // Clean up on error
-        if (map) map.remove();
-        if (container && container.parentNode) document.body.removeChild(container);
-        reject(error);
+      // Stitch tiles together
+      const stitchedImage = stitchTiles(tiles, grid);
+
+      // The bound will be slightly different due to tiling
+      const newBounds = {
+        north: bounds.north,
+        west: bounds.west,
+        south: tiles[tiles.length - 1].bounds.south,
+        east: tiles[tiles.length - 1].bounds.east,
+      };
+      debugLog('Stitched image bounds:', newBounds);
+      
+      resolve({
+        bounds: newBounds,
+        image: stitchedImage,
       });
       
     } catch (error) {
