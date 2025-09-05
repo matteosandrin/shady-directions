@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { isDebugMode, getDebugImage } from '../lib/debugUtils';
 
-function DebugIndicator() {
+function DebugIndicator(
+  { onSetPoints }
+) {
   const [showPanel, setShowPanel] = useState(false);
 
   if (!isDebugMode()) {
@@ -47,6 +49,16 @@ function DebugIndicator() {
                 View sampling points image
               </button>
             )}
+            <div>
+              <button
+                onClick={() => {
+                  onSetPoints({lng: -74.00678320503285, lat: 40.71284066166663}, {lng: -73.97326340655819, lat: 40.75466812253714});
+                  togglePanel();
+                }}
+                className="bg-transparent border-none text-green-400 underline cursor-pointer p-0 font-inherit leading-6">
+                Set debug points
+              </button>
+            </div>
             <div>
               <a
                 href="/"

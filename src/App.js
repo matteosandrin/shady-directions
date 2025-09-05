@@ -211,6 +211,12 @@ function App() {
     clearRoute();
   }, [clearRoute]);
 
+  const setDebugPoints = useCallback((startPoint, endPoint) => {
+    setStartPoint(startPoint);
+    setEndPoint(endPoint);
+    fetchRoute(startPoint, endPoint);
+  }, [fetchRoute]);
+
   // Initialize map
   useEffect(() => {
     if (!error && !map.current && mapContainer.current) {
@@ -438,7 +444,9 @@ function App() {
         onClose={closeRouteError} 
       />
 
-      <DebugIndicator />
+      <DebugIndicator
+        onSetPoints={setDebugPoints}
+      />
     </div>
   );
 }
