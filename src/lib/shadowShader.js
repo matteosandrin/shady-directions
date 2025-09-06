@@ -253,10 +253,10 @@ function calculateTileGrid(bounds, tileSize = 512, zoom = 15) {
   };
 }
 
-// Helper function to capture a single tile
-function captureTile(tileX, tileY, grid, bounds, date, zoom = 15) {
+// Helper function to capture a single tile using existing map
+function captureTile(tileX, tileY, grid, bounds, date, map, zoom = 15) {
   return new Promise((resolve, reject) => {
-    const { tileWidthMeters, tileHeightMeters, tileSize } = grid;
+    const { tileWidthMeters, tileHeightMeters } = grid;
 
     debugLog(`Capturing tile (${tileX}, ${tileY})...`);
     
@@ -267,113 +267,42 @@ function captureTile(tileX, tileY, grid, bounds, date, zoom = 15) {
     const tileCenterLng = bounds.west + (tileX + 0.5) * tileWidthMeters * lngPerMeter;
     const tileCenterLat = bounds.north - (tileY + 0.5) * tileHeightMeters * latPerMeter;
     
-    // Create container for this tile
-    const container = document.createElement('div');
-    container.style.cssText = `
-      position: fixed;
-      top: -${tileSize}px;
-      left: -${tileSize}px;
-      width: ${tileSize}px;
-      height: ${tileSize}px;
-      overflow: visible;
-      z-index: -1000;
-      pointer-events: none;
-    `;
-    document.body.appendChild(container);
+    // Move the existing map to the new tile position
+    map.setCenter([tileCenterLng, tileCenterLat]);
     
-    const map = new mapboxgl.Map({
-      container: container,
-      style: {
-        version: 8,
-        sources: {
-          'composite': {
-            type: 'vector',
-            url: 'mapbox://mapbox.mapbox-streets-v8'
-          }
-        },
-        layers: [
-          {
-            'id': 'background',
-            'type': 'background',
-            'paint': {
-              'background-color': '#ffffff'
-            }
-          }
-        ]
-      },
-      center: [tileCenterLng, tileCenterLat],
-      zoom: zoom,
-      pitch: 0,
-      bearing: 0,
-      preserveDrawingBuffer: true,
-      interactive: false,
-      attributionControl: false
-    });
-    
-    map.on('load', () => {
-      map.addLayer({
-        'id': '3d-buildings',
-        'source': 'composite',
-        'source-layer': 'building',
-        'type': 'fill-extrusion',
-        'filter': [
-          'all',
-          ['>', ['get', 'height'], 0],
-          ['!=', ['get', 'underground'], 'true']
-        ],
-        'paint': {
-          'fill-extrusion-color': 'transparent',
-          'fill-extrusion-height': ["number", ["get", "height"], 5],
-          'fill-extrusion-base': ["number", ["get", "min_height"], 0],
-          'fill-extrusion-opacity': 0
+    // Wait for the map to finish moving and rendering
+    setTimeout(() => {
+      const canvas = map.getCanvas();
+      const gl = map.painter.context.gl;
+      const width = canvas.width;
+      const height = canvas.height;
+      
+      const pixels = new Uint8Array(width * height * 4);
+      gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+      
+      const flippedPixels = new Uint8Array(width * height * 4);
+      for (let y = 0; y < height; y++) {
+        const srcStart = y * width * 4;
+        const destStart = (height - y - 1) * width * 4;
+        flippedPixels.set(pixels.subarray(srcStart, srcStart + width * 4), destStart);
+      }
+      
+      resolve({
+        pixels: flippedPixels,
+        width,
+        height,
+        tileX,
+        tileY,
+        bounds: {
+          west: bounds.west + tileX * tileWidthMeters * lngPerMeter,
+          north: bounds.north - tileY * tileHeightMeters * latPerMeter,
+          east: bounds.west + (tileX + 1) * tileWidthMeters * lngPerMeter,
+          south: bounds.north - (tileY + 1) * tileHeightMeters * latPerMeter,
         }
       });
-      
-      setTimeout(() => {
-        const shadowLayer = new BuildingShadows();
-        shadowLayer.updateDate(date);
-        map.addLayer(shadowLayer);
-        
-        setTimeout(() => {
-          const canvas = map.getCanvas();
-          const gl = map.painter.context.gl;
-          const width = canvas.width;
-          const height = canvas.height;
-          
-          const pixels = new Uint8Array(width * height * 4);
-          gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-          
-          const flippedPixels = new Uint8Array(width * height * 4);
-          for (let y = 0; y < height; y++) {
-            const srcStart = y * width * 4;
-            const destStart = (height - y - 1) * width * 4;
-            flippedPixels.set(pixels.subarray(srcStart, srcStart + width * 4), destStart);
-          }
-          
-          // Clean up
-          if (map) map.remove();
-          if (container && container.parentNode) document.body.removeChild(container);
-          
-          resolve({
-            pixels: flippedPixels,
-            width,
-            height,
-            tileX,
-            tileY,
-            bounds: {
-              west: bounds.west + tileX * tileWidthMeters * lngPerMeter,
-              north: bounds.north - tileY * tileHeightMeters * latPerMeter,
-              east: bounds.west + (tileX + 1) * tileWidthMeters * lngPerMeter,
-              south: bounds.north - (tileY + 1) * tileHeightMeters * latPerMeter,
-            }
-          });
-        }, 100);
-      }, 500);
-    });
+    }, 100);
     
     map.on('error', (error) => {
-      if (map) map.remove();
-      if (container && container.parentNode) document.body.removeChild(container);
       reject(error);
     });
   });
@@ -420,6 +349,9 @@ function stitchTiles(tiles, grid) {
 // Function to calculate shade map for arbitrary bounding box using tiled approach
 export function generateShadeMap(bounds, date = new Date(), output, tileSize = 512) {
   return new Promise(async (resolve, reject) => {
+    let map = null;
+    let container = null;
+    
     try {
       const zoom = 15;
       const centerLng = (bounds.west + bounds.east) / 2;
@@ -430,11 +362,89 @@ export function generateShadeMap(bounds, date = new Date(), output, tileSize = 5
       debugLog('Tile grid:', grid);
       const tiles = [];
       
-      // Capture all tiles
+      // Create a single container and map instance to reuse
+      container = document.createElement('div');
+      container.style.cssText = `
+        position: fixed;
+        top: -${tileSize}px;
+        left: -${tileSize}px;
+        width: ${tileSize}px;
+        height: ${tileSize}px;
+        overflow: visible;
+        z-index: -1000;
+        pointer-events: none;
+      `;
+      document.body.appendChild(container);
+      
+      map = new mapboxgl.Map({
+        container: container,
+        style: {
+          version: 8,
+          sources: {
+            'composite': {
+              type: 'vector',
+              url: 'mapbox://mapbox.mapbox-streets-v8'
+            }
+          },
+          layers: [
+            {
+              'id': 'background',
+              'type': 'background',
+              'paint': {
+                'background-color': '#ffffff'
+              }
+            }
+          ]
+        },
+        center: [centerLng, centerLat],
+        zoom: zoom,
+        pitch: 0,
+        bearing: 0,
+        preserveDrawingBuffer: true,
+        interactive: false,
+        attributionControl: false
+      });
+      
+      // Wait for initial map load
+      await new Promise((loadResolve, loadReject) => {
+        map.on('load', () => {
+          map.addLayer({
+            'id': '3d-buildings',
+            'source': 'composite',
+            'source-layer': 'building',
+            'type': 'fill-extrusion',
+            'filter': [
+              'all',
+              ['>', ['get', 'height'], 0],
+              ['!=', ['get', 'underground'], 'true']
+            ],
+            'paint': {
+              'fill-extrusion-color': 'transparent',
+              'fill-extrusion-height': ["number", ["get", "height"], 5],
+              'fill-extrusion-base': ["number", ["get", "min_height"], 0],
+              'fill-extrusion-opacity': 0
+            }
+          });
+          
+          setTimeout(() => {
+            const shadowLayer = new BuildingShadows();
+            shadowLayer.updateDate(date);
+            map.addLayer(shadowLayer);
+            
+            setTimeout(() => {
+              loadResolve();
+            }, 100);
+          }, 500);
+        });
+        
+        map.on('error', loadReject);
+      });
+      
+      // Capture all tiles using the same map instance
       for (let tileY = 0; tileY < grid.tilesY; tileY++) {
         for (let tileX = 0; tileX < grid.tilesX; tileX++) {
           try {
-            const tileData = await captureTile(tileX, tileY, grid, bounds, date, zoom);
+            const tileData = await captureTile(tileX, tileY, grid, bounds, date, map, zoom);
             tiles.push(tileData);
           } catch (error) {
             console.error(`Failed to capture tile ${tileX},${tileY}:`, error);
@@ -462,6 +472,10 @@ export function generateShadeMap(bounds, date = new Date(), output, tileSize = 5
       
     } catch (error) {
       reject(error);
+    } finally {
+      // Clean up the single map instance and container
+      if (map) map.remove();
+      if (container && container.parentNode) document.body.removeChild(container);
     }
   });
 }
